@@ -25,39 +25,7 @@ import {
 import { uid } from "./utils/id.js";
 import { todayISO, currentMonthKey, isInCurrentMonth, isFixedPaidThisMonth, monthLabel } from "./utils/date.js";
 import { formatMoney } from "./utils/money.js";
-
-// ---------- storage ----------
-const STORAGE_KEY = "expense-tracker:v1";
-
-const defaultState = {
-  settings: { salary: 0, currency: "RM" },
-  fixedExpenses: [],
-  debtGroups: [],
-  dailyExpenses: [],
-};
-
-const loadState = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : defaultState;
-    const s = { ...defaultState, ...parsed, settings: { ...defaultState.settings, ...(parsed?.settings || {}) } };
-    
-    if (!s.history) s.history = [];
-    if (!s.currentMonth) s.currentMonth = currentMonthKey(); // Start tracking from now
-
-    return s;
-  } catch {
-    return { ...defaultState, currentMonth: currentMonthKey(), history: [] };
-  }
-};
-
-const saveState = (state) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    /* quota or private mode — silent for now */
-  }
-};
+import { loadState, saveState } from "./state/storage.js";
 
 // ---------- splash ----------
 function SplashScreen({ onDone }) {
@@ -283,9 +251,11 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(ONBOARDING_KEY));
+  const [storageError, setStorageError] = useState(false);
 
   useEffect(() => {
-    saveState(state);
+    const ok = saveState(state);
+    if (!ok) setStorageError(true);
   }, [state]);
 
   // Auto-snapshot logic for month rollover
@@ -565,6 +535,21 @@ export default function App() {
             currency={currency}
             onClose={() => setShowHistory(false)}
           />
+        )}
+
+        {storageError && (
+          <div className="fixed bottom-16 left-0 right-0 z-40 mx-auto max-w-md px-4">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-red-800/60 bg-red-950/90 px-4 py-3 text-sm text-red-300 shadow-lg backdrop-blur">
+              <span>Storage full — changes may not be saved. Free up space to continue.</span>
+              <button
+                onClick={() => setStorageError(false)}
+                className="shrink-0 text-red-400 hover:text-red-200"
+                aria-label="Dismiss"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
