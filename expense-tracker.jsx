@@ -45,44 +45,59 @@ export default function App() {
     if (!ok) setStorageError(true);
   }, [state]);
 
-  // Auto-snapshot logic for month rollover
+  // Auto-snapshot logic for month rollover.
+  // Runs on mount and whenever the tab becomes visible (covers the user
+  // returning to the app after midnight). Latest state is read via a ref
+  // so the effect itself does not depend on every expense field.
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; });
+
   useEffect(() => {
-    const nowMonth = currentMonthKey();
-    if (state.currentMonth && state.currentMonth !== nowMonth) {
-      const m = state.currentMonth;
-      
-      const s_salary = state.settings.salary || 0;
-      const s_fixedTotal = state.fixedExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-      
-      let s_installments = 0;
-      state.debtGroups.forEach(g => {
+    const checkRollover = () => {
+      const s = stateRef.current;
+      const nowMonth = currentMonthKey();
+      if (!s.currentMonth || s.currentMonth === nowMonth) return;
+
+      const m = s.currentMonth;
+      const salary = s.settings.salary || 0;
+      const fixedTotal = s.fixedExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+      let installments = 0;
+      s.debtGroups.forEach(g => {
         g.installments.forEach(i => {
-          if (i.dueDate && i.dueDate.startsWith(m)) s_installments += Number(i.amount || 0);
+          if (i.dueDate && i.dueDate.startsWith(m)) installments += Number(i.amount || 0);
         });
       });
-      
-      let s_dailySpent = 0;
-      state.dailyExpenses.forEach(e => {
-        if (e.date && e.date.startsWith(m)) s_dailySpent += Number(e.amount || 0);
+
+      let dailySpent = 0;
+      s.dailyExpenses.forEach(e => {
+        if (e.date && e.date.startsWith(m)) dailySpent += Number(e.amount || 0);
       });
 
       const snapshot = {
         id: uid(),
         month: m,
-        salary: s_salary,
-        fixedTotal: s_fixedTotal,
-        installments: s_installments,
-        dailySpent: s_dailySpent,
-        balance: s_salary - s_fixedTotal - s_installments - s_dailySpent
+        salary,
+        fixedTotal,
+        installments,
+        dailySpent,
+        balance: salary - fixedTotal - installments - dailySpent,
       };
 
-      setState(s => ({
-        ...s,
+      setState(prev => ({
+        ...prev,
         currentMonth: nowMonth,
-        history: [snapshot, ...(s.history || [])]
+        history: [snapshot, ...(prev.history || [])],
       }));
-    }
-  }, [state.currentMonth, state.settings.salary, state.fixedExpenses, state.debtGroups, state.dailyExpenses]);
+    };
+
+    checkRollover();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') checkRollover();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
 
   // Prompt for salary on very first run (skip if onboarding is active — it will open settings on completion)
   useEffect(() => {
