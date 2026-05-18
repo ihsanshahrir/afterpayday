@@ -22,6 +22,9 @@ import {
   Receipt,
   CreditCard,
 } from "lucide-react";
+import { uid } from "./utils/id.js";
+import { todayISO, currentMonthKey, isInCurrentMonth, isFixedPaidThisMonth, monthLabel } from "./utils/date.js";
+import { formatMoney } from "./utils/money.js";
 
 // ---------- storage ----------
 const STORAGE_KEY = "expense-tracker:v1";
@@ -55,39 +58,6 @@ const saveState = (state) => {
     /* quota or private mode — silent for now */
   }
 };
-
-// ---------- helpers ----------
-const uid = () => Math.random().toString(36).slice(2, 10);
-
-const todayISO = () => {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-};
-
-const isInCurrentMonth = (isoDate) => {
-  if (!isoDate) return false;
-  const d = new Date(isoDate);
-  const now = new Date();
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-};
-
-const currentMonthKey = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-};
-
-const isFixedPaidThisMonth = (expense) => expense.paidMonth === currentMonthKey();
-
-const formatMoney = (n, currency = "RM") => {
-  const v = Number.isFinite(n) ? n : 0;
-  return `${currency} ${v.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-};
-
-const monthLabel = () =>
-  new Date().toLocaleDateString("en-MY", { month: "long", year: "numeric" });
 
 // ---------- splash ----------
 function SplashScreen({ onDone }) {
