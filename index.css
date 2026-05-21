@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 html {
-  background: #0a0a0a;
+  background: var(--bg-base, #06040e);
   overflow-x: hidden;
   overscroll-behavior-y: none;
-  touch-action: pan-y;              /* CSS-level zoom block, allows vertical scroll */
-  -webkit-overflow-scrolling: touch; /* Smooth momentum scrolling on iOS */
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Hide scrollbars globally while keeping scroll functionality intact */
@@ -18,7 +18,7 @@ html {
 }
 
 body {
-  background: #0a0a0a;
+  background: var(--bg-base, #06040e);
   overflow-x: hidden;
 }
 
