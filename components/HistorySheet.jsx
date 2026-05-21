@@ -1,94 +1,98 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatMoney } from "../utils/money.js";
 
 export default function HistorySheet({ history, currency, onClose }) {
-  const [isClosing, setIsClosing] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setIsOpen(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   const close = () => {
-    setIsClosing(true);
-    setTimeout(onClose, 280);
+    setIsOpen(false);
+    setTimeout(onClose, 400);
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ animation: `${isClosing ? 'iosPickerFadeOut' : 'iosPickerFadeIn'} 0.28s ease forwards` }}
-      onClick={close}
-    >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+    <>
+      <div className={`scrim${isOpen ? " on" : ""}`} onClick={close} />
       <div
-        className="relative w-full max-w-md max-h-[85vh] flex flex-col rounded-t-2xl border-t border-neutral-700/50"
-        style={{
-          background: 'linear-gradient(180deg, rgba(38,38,38,0.98) 0%, rgba(23,23,23,0.99) 100%)',
-          animation: `${isClosing ? 'iosPickerSlideDown' : 'iosPickerSlideUp'} 0.32s cubic-bezier(0.32, 0.72, 0, 1) forwards`,
-        }}
+        className={`sheet${isOpen ? " on" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Monthly history"
+        style={{ maxHeight: "85vh", overflowY: "auto" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-neutral-700/50 shrink-0">
-          <div className="w-12"></div>
-          <span className="text-sm font-medium text-neutral-200">Monthly History</span>
-          <button
-            onClick={close}
-            className="w-12 text-right text-sm font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
-          >
-            Done
-          </button>
+        <div className="grab" />
+        <div className="sheet-head">
+          <div className="titles">
+            <h3>Monthly history</h3>
+          </div>
+          <button className="done" onClick={close}>Done</button>
         </div>
 
-        <style>{`
-          @keyframes iosPickerFadeIn { from { opacity: 0 } to { opacity: 1 } }
-          @keyframes iosPickerFadeOut { from { opacity: 1 } to { opacity: 0 } }
-          @keyframes iosPickerSlideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
-          @keyframes iosPickerSlideDown { from { transform: translateY(0) } to { transform: translateY(100%) } }
-        `}</style>
+        {(!history || history.length === 0) ? (
+          <div className="empty-card">
+            <h4>No earlier history</h4>
+            <p>Snapshots are taken automatically at the start of each new month.</p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {history.map((h) => {
+              const totalSpent = h.fixedTotal + h.installments + h.dailySpent;
+              const progress = h.salary > 0 ? Math.min(1, totalSpent / h.salary) : 0;
+              const isPositive = h.balance >= 0;
+              const [yy, mm] = h.month.split("-");
+              const monthStr = new Date(yy, mm - 1, 1).toLocaleDateString("en-MY", {
+                month: "long", year: "numeric",
+              });
 
-        <div className="p-5 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-          {(!history || history.length === 0) ? (
-            <div className="rounded-xl border border-dashed border-neutral-700 p-8 text-center text-sm text-neutral-500">
-              No earlier history.
-              <div className="mt-1 text-xs text-neutral-600">Snapshots are taken automatically at the start of a new month.</div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {history.map((h) => {
-                const totalSpent = h.fixedTotal + h.installments + h.dailySpent;
-                const progress = h.salary > 0 ? Math.min(1, totalSpent / h.salary) : 0;
-                const isPositive = h.balance >= 0;
-                const [yy, mm] = h.month.split('-');
-                const monthStr = new Date(yy, mm - 1, 1).toLocaleDateString("en-MY", { month: "long", year: "numeric" });
-
-                return (
-                  <div key={h.id} className="rounded-xl border border-neutral-700/50 bg-neutral-800/30 p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-medium text-neutral-200">{monthStr}</span>
-                      <div className={`text-sm font-semibold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {isPositive ? '+' : '−'} {formatMoney(Math.abs(h.balance), currency)}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-neutral-400 mb-2">
-                      <span>Salary <span className="text-neutral-300">{formatMoney(h.salary, currency)}</span></span>
-                      <span>Spent <span className="text-neutral-300">{formatMoney(totalSpent, currency)}</span></span>
-                    </div>
-
-                    <div className="h-1.5 rounded-full bg-neutral-900 overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500 ease-out"
-                        style={{
-                          width: `${progress * 100}%`,
-                          background: progress >= 1
-                            ? 'linear-gradient(90deg, #f43f5e, #e11d48)'
-                            : 'linear-gradient(90deg, #38bdf8, #818cf8)',
-                        }}
-                      />
-                    </div>
+              return (
+                <div
+                  key={h.id}
+                  style={{
+                    background: "var(--glass)",
+                    border: "1px solid var(--glass-edge)",
+                    borderRadius: "var(--r-lg)",
+                    padding: "14px 16px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ font: "600 14px var(--font)", color: "var(--fg)" }}>{monthStr}</span>
+                    <span style={{
+                      font: "600 14px var(--font)",
+                      fontVariantNumeric: "tabular-nums",
+                      color: isPositive ? "var(--emerald)" : "var(--rose)",
+                    }}>
+                      {isPositive ? "+" : "−"} {formatMoney(Math.abs(h.balance), currency)}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", font: "500 11px var(--font)", color: "var(--fg-3)" }}>
+                    <span>Salary <span style={{ color: "var(--fg-2)" }}>{formatMoney(h.salary, currency)}</span></span>
+                    <span>Spent <span style={{ color: "var(--fg-2)" }}>{formatMoney(totalSpent, currency)}</span></span>
+                  </div>
+                  <div style={{ height: 4, borderRadius: 9999, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                    <div style={{
+                      height: "100%",
+                      borderRadius: 9999,
+                      width: `${progress * 100}%`,
+                      background: progress >= 1
+                        ? "linear-gradient(90deg, var(--rose), #e11d48)"
+                        : "linear-gradient(90deg, var(--emerald), var(--violet))",
+                      transition: "width 500ms cubic-bezier(0.16,1,0.3,1)",
+                    }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-    </div>
+    </>
   );
 }
