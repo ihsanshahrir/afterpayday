@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Receipt, Plus, X, Check, Trash2, CreditCard,
-  Calendar, ChevronDown, ChevronRight,
+  Calendar,
 } from "lucide-react";
 import WheelColumn from "./WheelColumn.jsx";
 import { uid } from "../utils/id.js";
@@ -19,6 +19,9 @@ const MONTHS_SHORT = [
 
 const daysInMonth = (month, year) => new Date(year, month, 0).getDate();
 
+const fmtNum = (n) =>
+  (Number.isFinite(n) ? n : 0).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export default function Commitments({
   currency,
   fixedExpenses,
@@ -35,7 +38,7 @@ export default function Commitments({
   onRemoveInstallment,
 }) {
   return (
-    <div className="px-5 pt-4 space-y-8">
+    <div style={{ display: "flex", flexDirection: "column", gap: 0, paddingBottom: 8 }}>
       <FixedExpensesSection
         currency={currency}
         items={fixedExpenses}
@@ -86,37 +89,37 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
   };
 
   return (
-    <section>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
-            <Receipt size={13} className="text-amber-400" />
-          </div>
-          <h2 className="text-base font-semibold text-neutral-200 tracking-tight">Fixed Monthly Expenses</h2>
-          {totalCount > 0 && (
-            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700/50">
-              {paidCount}/{totalCount}
-            </span>
-          )}
-        </div>
-        <button onClick={() => setAdding((v) => !v)} className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
-          {adding ? <X size={14} /> : <Plus size={14} />}
-          {adding ? "Cancel" : "Add"}
+    <div className="sect">
+      <div className="head">
+        <div className="chip amber"><Receipt size={15} strokeWidth={1.75} /></div>
+        <h2>Fixed Monthly Expenses</h2>
+        {totalCount > 0 && (
+          <span className="badge">{paidCount}/{totalCount}</span>
+        )}
+        <button
+          onClick={() => setAdding((v) => !v)}
+          className={adding ? "cancel-add" : "add"}
+          aria-label={adding ? "Cancel" : "Add expense"}
+        >
+          {adding ? <><X size={13} strokeWidth={1.75} /> Cancel</> : <><Plus size={13} strokeWidth={1.75} /> Add</>}
         </button>
       </div>
 
       {adding && (
-        <div className="mb-3 rounded-xl border border-neutral-800 bg-neutral-900/40 p-3 space-y-2">
+        <div className="glass" style={{ padding: "14px", marginBottom: 12 }}>
           <input
             type="text"
             placeholder="Name (e.g. Rent)"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg bg-neutral-950 border border-neutral-800 text-sm focus:outline-none focus:border-emerald-500/50"
+            className="glass-input"
+            style={{ marginBottom: 10 }}
           />
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">{currency}</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ position: "relative", flex: 1 }}>
+              <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--fg-3)", font: "500 14px var(--font)", pointerEvents: "none" }}>
+                {currency}
+              </span>
               <input
                 type="number"
                 inputMode="decimal"
@@ -124,92 +127,73 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && submit()}
-                className="w-full pl-10 pr-3 py-2 rounded-lg bg-neutral-950 border border-neutral-800 text-sm focus:outline-none focus:border-emerald-500/50"
+                className="glass-input"
+                style={{ paddingLeft: "3rem" }}
               />
             </div>
-            <button onClick={submit} className="px-4 rounded-lg bg-emerald-500 text-neutral-950 text-sm font-medium hover:bg-emerald-400 transition-colors">
-              Save
-            </button>
+            <button onClick={submit} className="glass-btn-primary">Save</button>
           </div>
         </div>
       )}
 
       {items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-neutral-800 p-6 text-center flex flex-col items-center gap-2">
-          <Receipt size={20} className="text-neutral-700" />
-          <span className="text-sm text-neutral-500">No fixed expenses yet.</span>
+        <div className="glass" style={{ padding: "28px 20px", textAlign: "center" }}>
+          <Receipt size={22} style={{ color: "var(--fg-4)", marginBottom: 8 }} />
+          <div style={{ color: "var(--fg-3)", font: "500 13px var(--font)" }}>No fixed expenses yet.</div>
         </div>
       ) : (
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 overflow-hidden">
-          {totalCount > 0 && (
-            <div className="px-4 pt-3 pb-1">
-              <div className="h-1.5 rounded-full bg-neutral-800 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500 ease-out"
-                  style={{
-                    width: `${progress * 100}%`,
-                    background: progress === 1
-                      ? 'linear-gradient(90deg, #34d399, #10b981)'
-                      : 'linear-gradient(90deg, #34d399, #6ee7b7)',
-                  }}
-                />
-              </div>
-            </div>
-          )}
+        <div className="glass fixed-card">
+          <div className="miniprog">
+            <div className="bar"><div style={{ width: `${progress * 100}%` }} /></div>
+          </div>
 
-          <ul className="divide-y divide-neutral-800/70">
-            {visibleItems.map((e) => {
-              const isPaid = isFixedPaidThisMonth(e);
-              return (
-                <li key={e.id} className="flex items-center gap-3 px-4 py-3">
-                  <button
-                    onClick={() => onToggle(e.id)}
-                    className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
-                      isPaid
-                        ? "bg-emerald-500 border-emerald-500"
-                        : "border-neutral-700 hover:border-neutral-500"
-                    }`}
-                    aria-label={isPaid ? "Mark unpaid" : "Mark paid"}
-                  >
-                    {isPaid && <Check size={12} className="text-neutral-950" strokeWidth={3} />}
-                  </button>
-                  <span className={`flex-1 text-sm ${isPaid ? "line-through text-neutral-600" : "text-neutral-200"}`}>
-                    {e.name}
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-sm ${isPaid ? "line-through text-neutral-600" : "text-neutral-100"}`}>
-                      {formatMoney(e.amount, currency)}
-                    </span>
-                    <button onClick={() => onRemove(e.id)} className="text-neutral-600 hover:text-rose-400" aria-label="Remove">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          {visibleItems.map((e) => {
+            const isPaid = isFixedPaidThisMonth(e);
+            return (
+              <div key={e.id} className={`row${isPaid ? " paid" : ""}`}>
+                <button
+                  className={`check${isPaid ? " on" : ""}`}
+                  onClick={() => onToggle(e.id)}
+                  aria-label={isPaid ? "Mark unpaid" : "Mark paid"}
+                >
+                  {isPaid && <Check size={12} style={{ color: "#06281d" }} strokeWidth={3} />}
+                </button>
+                <span className="name">{e.name}</span>
+                <span className="amt">{formatMoney(e.amount, currency)}</span>
+                <button
+                  onClick={() => onRemove(e.id)}
+                  style={{ background: "none", border: 0, color: "var(--fg-4)", padding: "4px", transition: "color 150ms ease", cursor: "pointer" }}
+                  aria-label="Remove"
+                  onMouseEnter={(ev) => (ev.currentTarget.style.color = "var(--rose)")}
+                  onMouseLeave={(ev) => (ev.currentTarget.style.color = "var(--fg-4)")}
+                >
+                  <Trash2 size={14} strokeWidth={1.75} />
+                </button>
+              </div>
+            );
+          })}
 
           {hasMore && (
             <button
+              className="show-more"
               onClick={() => setShowAll((v) => !v)}
-              className="w-full px-4 py-2 text-[11px] font-medium text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800/30 transition-colors border-t border-neutral-800/70"
             >
               {showAll
                 ? "Show less"
-                : `Show ${hiddenTotal} more ${hiddenUnpaid > 0 ? `(${hiddenUnpaid} unpaid)` : ""}`}
+                : `Show ${hiddenTotal} more${hiddenUnpaid > 0 ? ` (${hiddenUnpaid} unpaid)` : ""}`}
             </button>
           )}
 
-          <div className="flex items-center justify-between px-4 py-3 bg-neutral-900/70 border-t border-neutral-800/70">
-            <span className="text-xs uppercase tracking-widest text-neutral-500">Unpaid</span>
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-semibold text-emerald-400">{formatMoney(unpaidTotal, currency)}</span>
-              <span className="text-[11px] text-neutral-600">/ {formatMoney(total, currency)}</span>
-            </div>
+          <div className="footer">
+            <span className="l">Unpaid</span>
+            <span className="r">
+              {formatMoney(unpaidTotal, currency)}
+              <span className="of"> / {formatMoney(total, currency)}</span>
+            </span>
           </div>
         </div>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -217,17 +201,15 @@ function DebtSection({ currency, groups, onAddGroup, onRemoveGroup, onToggle, on
   const [creating, setCreating] = useState(false);
 
   return (
-    <section>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center flex-shrink-0">
-            <CreditCard size={13} className="text-rose-400" />
-          </div>
-          <h2 className="text-base font-semibold text-neutral-200 tracking-tight">Installment Debt</h2>
-        </div>
-        <button onClick={() => setCreating((v) => !v)} className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
-          {creating ? <X size={14} /> : <Plus size={14} />}
-          {creating ? "Cancel" : "New group"}
+    <div className="sect">
+      <div className="head">
+        <div className="chip pink"><CreditCard size={15} strokeWidth={1.75} /></div>
+        <h2>Installment Debt</h2>
+        <button
+          onClick={() => setCreating((v) => !v)}
+          className={creating ? "cancel-add" : "add"}
+        >
+          {creating ? <><X size={13} strokeWidth={1.75} /> Cancel</> : <><Plus size={13} strokeWidth={1.75} /> New group</>}
         </button>
       </div>
 
@@ -243,12 +225,12 @@ function DebtSection({ currency, groups, onAddGroup, onRemoveGroup, onToggle, on
       )}
 
       {groups.length === 0 && !creating ? (
-        <div className="rounded-xl border border-dashed border-neutral-800 p-6 text-center flex flex-col items-center gap-2">
-          <CreditCard size={20} className="text-neutral-700" />
-          <span className="text-sm text-neutral-500">No debt groups yet.</span>
+        <div className="glass" style={{ padding: "28px 20px", textAlign: "center" }}>
+          <CreditCard size={22} style={{ color: "var(--fg-4)", marginBottom: 8 }} />
+          <div style={{ color: "var(--fg-3)", font: "500 13px var(--font)" }}>No debt groups yet.</div>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {groups.map((g) => (
             <DebtGroupCard
               key={g.id}
@@ -262,7 +244,7 @@ function DebtSection({ currency, groups, onAddGroup, onRemoveGroup, onToggle, on
           ))}
         </div>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -311,17 +293,27 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
   };
 
   return (
-    <div className="mb-3 rounded-xl border border-neutral-800 bg-neutral-900/40 p-3 space-y-3">
-      <div className="flex gap-1 p-1 bg-neutral-950 rounded-lg border border-neutral-800">
+    <div className="glass" style={{ padding: "14px", marginBottom: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", gap: 4, padding: "4px", background: "rgba(0,0,0,0.25)", borderRadius: 12, border: "1px solid var(--glass-edge)" }}>
         <button
           onClick={() => setMode("auto")}
-          className={`flex-1 text-xs py-1.5 rounded ${mode === "auto" ? "bg-neutral-800 text-neutral-100" : "text-neutral-500"}`}
+          style={{
+            flex: 1, fontSize: 12, padding: "8px 0", borderRadius: 9, border: 0,
+            background: mode === "auto" ? "var(--glass-strong)" : "transparent",
+            color: mode === "auto" ? "var(--fg)" : "var(--fg-3)",
+            transition: "background 150ms, color 150ms",
+          }}
         >
           Auto-generate
         </button>
         <button
           onClick={() => setMode("manual")}
-          className={`flex-1 text-xs py-1.5 rounded ${mode === "manual" ? "bg-neutral-800 text-neutral-100" : "text-neutral-500"}`}
+          style={{
+            flex: 1, fontSize: 12, padding: "8px 0", borderRadius: 9, border: 0,
+            background: mode === "manual" ? "var(--glass-strong)" : "transparent",
+            color: mode === "manual" ? "var(--fg)" : "var(--fg-3)",
+            transition: "background 150ms, color 150ms",
+          }}
         >
           Manual
         </button>
@@ -332,21 +324,24 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
         placeholder="Group name (e.g. Macbook Air M4)"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="w-full px-3 py-2 rounded-lg bg-neutral-950 border border-neutral-800 text-sm focus:outline-none focus:border-emerald-500/50"
+        className="glass-input"
       />
 
       {mode === "auto" && (
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">{currency}</span>
+        <>
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ position: "relative", flex: 1 }}>
+              <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--fg-3)", font: "500 14px var(--font)", pointerEvents: "none" }}>
+                {currency}
+              </span>
               <input
                 type="number"
                 inputMode="decimal"
                 placeholder="Total amount"
                 value={total}
                 onChange={(e) => setTotal(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 rounded-lg bg-neutral-950 border border-neutral-800 text-sm focus:outline-none focus:border-emerald-500/50"
+                className="glass-input"
+                style={{ paddingLeft: "3rem" }}
               />
             </div>
             <input
@@ -355,70 +350,36 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
               placeholder="Months"
               value={months}
               onChange={(e) => setMonths(e.target.value)}
-              className="w-24 px-3 py-2 rounded-lg bg-neutral-950 border border-neutral-800 text-sm focus:outline-none focus:border-emerald-500/50"
+              className="glass-input"
+              style={{ width: 90 }}
             />
           </div>
           <div>
-            <label className="text-[11px] uppercase tracking-widest text-neutral-500">Starting date</label>
-            <div className="mt-1">
+            <label style={{ font: "500 10px var(--font)", letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--fg-3)" }}>
+              Starting date
+            </label>
+            <div style={{ marginTop: 6 }}>
               <DatePickerField value={startDate} onChange={setStartDate} />
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {mode === "manual" && (
-        <p className="text-xs text-neutral-500">
-          Create the group, then add each installment with custom amounts and due dates from inside the group card.
+        <p style={{ font: "500 12px var(--font)", color: "var(--fg-3)", margin: 0, lineHeight: 1.5 }}>
+          Create the group, then add each installment with custom amounts and due dates.
         </p>
       )}
 
-      <div className="flex gap-2">
-        <button onClick={onCancel} className="flex-1 py-2 rounded-lg border border-neutral-800 text-sm text-neutral-300 hover:bg-neutral-800/50">
-          Cancel
-        </button>
-        <button onClick={submit} className="flex-1 py-2 rounded-lg bg-emerald-500 text-neutral-950 text-sm font-medium hover:bg-emerald-400">
-          Create group
-        </button>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={onCancel} className="glass-btn-secondary" style={{ flex: 1 }}>Cancel</button>
+        <button onClick={submit} className="glass-btn-primary" style={{ flex: 1 }}>Create group</button>
       </div>
     </div>
   );
 }
 
-function MonthPickerField({ label, value, onChange }) {
-  const [showPicker, setShowPicker] = useState(false);
-  const [yy, mm] = value.split("-").map(Number);
-  const displayText = `${MONTHS[mm - 1]} ${yy}`;
-
-  return (
-    <div>
-      <label className="text-[11px] uppercase tracking-widest text-neutral-500">{label}</label>
-      <button
-        type="button"
-        onClick={() => setShowPicker(true)}
-        className="mt-1 w-full px-3 py-2 rounded-lg bg-neutral-950 border border-emerald-500/30 text-sm text-neutral-100 text-left flex items-center justify-between focus:outline-none focus:border-emerald-500/50 hover:bg-neutral-900 transition-colors"
-      >
-        <span>{displayText}</span>
-        <Calendar size={14} className="text-neutral-500" />
-      </button>
-      {showPicker && (
-        <DatePickerModal
-          mode="month"
-          initialDay={1}
-          initialMonth={mm}
-          initialYear={yy}
-          onConfirm={(day, month, year) => {
-            onChange(`${year}-${String(month).padStart(2, "0")}`);
-            setShowPicker(false);
-          }}
-          onCancel={() => setShowPicker(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-function DatePickerField({ label, value, onChange }) {
+function DatePickerField({ value, onChange }) {
   const [showPicker, setShowPicker] = useState(false);
   const [yy, mm, dd] = value.split("-").map(Number);
   const displayText = `${dd} ${MONTHS_SHORT[mm - 1]} ${yy}`;
@@ -427,10 +388,16 @@ function DatePickerField({ label, value, onChange }) {
     <button
       type="button"
       onClick={() => setShowPicker(true)}
-      className="flex-1 px-3 py-2 rounded-lg bg-neutral-950 border border-emerald-500/30 text-sm text-neutral-100 text-left flex items-center justify-between focus:outline-none focus:border-emerald-500/50 hover:bg-neutral-900 transition-colors"
+      style={{
+        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "11px 14px", borderRadius: 12,
+        background: "var(--glass)", border: "1px solid rgba(52,211,153,0.35)",
+        color: "var(--fg)", font: "500 14px var(--font)",
+        transition: "border-color 150ms", cursor: "pointer",
+      }}
     >
       <span>{displayText}</span>
-      <Calendar size={14} className="text-neutral-500" />
+      <Calendar size={14} style={{ color: "var(--fg-3)" }} strokeWidth={1.75} />
       {showPicker && (
         <DatePickerModal
           mode="date"
@@ -475,23 +442,20 @@ function DatePickerModal({ mode, initialDay, initialMonth, initialYear, onConfir
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ animation: `${isClosing ? 'iosPickerFadeOut' : 'iosPickerFadeIn'} 0.28s ease forwards` }}
+      style={{ animation: `${isClosing ? "iosPickerFadeOut" : "iosPickerFadeIn"} 0.28s ease forwards` }}
       onClick={(e) => { e.stopPropagation(); close(onCancel); }}
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         className="relative w-full max-w-md rounded-t-2xl border-t border-neutral-700/50 overflow-hidden"
         style={{
-          background: 'linear-gradient(180deg, rgba(38,38,38,0.98) 0%, rgba(23,23,23,0.99) 100%)',
-          animation: `${isClosing ? 'iosPickerSlideDown' : 'iosPickerSlideUp'} 0.32s cubic-bezier(0.32, 0.72, 0, 1) forwards`,
+          background: "linear-gradient(180deg, rgba(38,38,38,0.98) 0%, rgba(23,23,23,0.99) 100%)",
+          animation: `${isClosing ? "iosPickerSlideDown" : "iosPickerSlideUp"} 0.32s cubic-bezier(0.32, 0.72, 0, 1) forwards`,
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <button
-            onClick={() => close(onCancel)}
-            className="text-sm text-neutral-400 hover:text-neutral-200 transition-colors"
-          >
+          <button onClick={() => close(onCancel)} className="text-sm text-neutral-400 hover:text-neutral-200 transition-colors">
             Cancel
           </button>
           <span className="text-sm font-medium text-neutral-200">{title}</span>
@@ -542,7 +506,7 @@ function DatePickerModal({ mode, initialDay, initialMonth, initialYear, onConfir
 }
 
 function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallment, onRemoveInstallment }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [addingInst, setAddingInst] = useState(false);
 
@@ -550,9 +514,11 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
   const paidCount = group.installments.filter((i) => i.isPaid).length;
   const unpaidCount = totalCount - paidCount;
   const total = group.installments.reduce((s, i) => s + Number(i.amount || 0), 0);
-  const paid = group.installments.filter((i) => i.isPaid).reduce((s, i) => s + Number(i.amount || 0), 0);
-  const remaining = total - paid;
   const progress = totalCount > 0 ? paidCount / totalCount : 0;
+
+  const thisMonthAmt = group.installments
+    .filter((i) => isInCurrentMonth(i.dueDate))
+    .reduce((s, i) => s + Number(i.amount || 0), 0);
 
   const PREVIEW_COUNT = 3;
   const unpaidInstallments = group.installments.filter((i) => !i.isPaid);
@@ -562,102 +528,88 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
   const hiddenTotal = totalCount - visibleItems.length;
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 overflow-hidden">
-      <div className="px-4 py-3">
-        <div className="flex items-center justify-between">
-          <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2 min-w-0">
-            {open ? <ChevronDown size={14} className="text-neutral-500" /> : <ChevronRight size={14} className="text-neutral-500" />}
-            <span className="text-sm font-medium text-neutral-200 truncate">{group.name}</span>
-          </button>
-          <div className="flex items-center gap-3">
-            {totalCount > 0 && (
-              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-300 border border-neutral-700/50">
-                {paidCount}/{totalCount}
-              </span>
-            )}
-            <span className="text-xs text-neutral-500">
-              {formatMoney(remaining, currency)} <span className="text-neutral-700">left</span>
-            </span>
-            <button onClick={onRemoveGroup} className="text-neutral-600 hover:text-rose-400" aria-label="Remove group">
-              <Trash2 size={14} />
-            </button>
-          </div>
-        </div>
-
-        {totalCount > 0 && open && (
-          <div className="mt-2.5 h-1.5 rounded-full bg-neutral-800 overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500 ease-out"
-              style={{
-                width: `${progress * 100}%`,
-                background: progress === 1
-                  ? 'linear-gradient(90deg, #34d399, #10b981)'
-                  : 'linear-gradient(90deg, #34d399, #6ee7b7)',
-              }}
-            />
-          </div>
+    <div className="glass debt-card">
+      <div className="top">
+        <span className="dot" style={{ background: "var(--pink)" }} />
+        <span className="name">{group.name}</span>
+        {thisMonthAmt > 0 && (
+          <span className="pm">
+            {formatMoney(thisMonthAmt, currency)}
+            <span className="of">/mo</span>
+          </span>
         )}
+        <button className="trash-btn" onClick={onRemoveGroup} aria-label="Remove group">
+          <Trash2 size={14} strokeWidth={1.75} />
+        </button>
       </div>
 
+      {totalCount > 0 && (
+        <>
+          <div className="dprogress">
+            <div style={{ width: `${progress * 100}%` }} />
+          </div>
+          <div className="meta">
+            <span>{paidCount} / {totalCount} months</span>
+            <span>{Math.round(progress * 100)}%</span>
+          </div>
+        </>
+      )}
+
+      <button className="expand-btn" onClick={() => setOpen((v) => !v)}>
+        {open
+          ? "Hide installments ↑"
+          : totalCount === 0
+            ? "Add installments ↓"
+            : `Show installments${unpaidCount > 0 ? ` · ${unpaidCount} unpaid` : ""} ↓`}
+      </button>
+
       {open && (
-        <div className="border-t border-neutral-800/70">
+        <div className="installments">
           {group.installments.length === 0 ? (
-            <div className="px-4 py-4 text-xs text-neutral-500">No installments yet.</div>
+            <div style={{ padding: "14px 0", color: "var(--fg-3)", font: "500 12px var(--font)" }}>
+              No installments yet.
+            </div>
           ) : (
             <>
-              <ul className="divide-y divide-neutral-800/70">
-                {visibleItems.map((i) => (
-                  <li key={i.id} className="flex items-center gap-3 px-4 py-2.5">
-                    <button
-                      onClick={() => onToggle(i.id)}
-                      className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
-                        i.isPaid
-                          ? "bg-emerald-500 border-emerald-500"
-                          : "border-neutral-700 hover:border-neutral-500"
-                      }`}
-                      aria-label={i.isPaid ? "Mark unpaid" : "Mark paid"}
-                    >
-                      {i.isPaid && <Check size={12} className="text-neutral-950" strokeWidth={3} />}
-                    </button>
-                    <div className={`flex-1 min-w-0 ${i.isPaid ? "line-through text-neutral-600" : "text-neutral-200"}`}>
-                      <div className="text-sm truncate">{i.label}</div>
-                      <div className="text-[11px] text-neutral-500">{i.dueDate}</div>
-                    </div>
-                    <div className={`text-sm ${i.isPaid ? "line-through text-neutral-600" : "text-neutral-100"}`}>
-                      {formatMoney(i.amount, currency)}
-                    </div>
-                    <button
-                      onClick={() => onRemoveInstallment(i.id)}
-                      className="text-neutral-700 hover:text-rose-400"
-                      aria-label="Remove installment"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              {visibleItems.map((i) => (
+                <div key={i.id} className={`inst-row${i.isPaid ? " paid" : ""}`}>
+                  <button
+                    className={`check${i.isPaid ? " on" : ""}`}
+                    onClick={() => onToggle(i.id)}
+                    aria-label={i.isPaid ? "Mark unpaid" : "Mark paid"}
+                  >
+                    {i.isPaid && <Check size={11} style={{ color: "#06281d" }} strokeWidth={3} />}
+                  </button>
+                  <div className="info">
+                    <div className="il">{i.label}</div>
+                    <div className="id">{i.dueDate}</div>
+                  </div>
+                  <span className="ia">{formatMoney(i.amount, currency)}</span>
+                  <button className="ix" onClick={() => onRemoveInstallment(i.id)} aria-label="Remove">
+                    <Trash2 size={12} strokeWidth={1.75} />
+                  </button>
+                </div>
+              ))}
 
               {hasMore && (
                 <button
                   onClick={() => setShowAll((v) => !v)}
-                  className="w-full px-4 py-2 text-xs text-center border-t border-neutral-800/70 hover:bg-neutral-800/30 transition-colors"
+                  style={{
+                    width: "100%", padding: "8px 0", background: "none", border: 0,
+                    borderTop: "1px solid rgba(255,255,255,0.06)",
+                    font: "500 11px var(--font)", color: "var(--fg-3)", textAlign: "center",
+                    transition: "color 150ms", cursor: "pointer", marginTop: 2,
+                  }}
                 >
-                  {showAll ? (
-                    <span className="text-neutral-400">Show less</span>
-                  ) : (
-                    <span className="text-emerald-400">
-                      Show all
-                      <span className="text-neutral-500 ml-1.5">
-                        ({hiddenTotal > 0 ? `${hiddenUnpaid > 0 ? `${hiddenUnpaid} unpaid` : ""}${hiddenUnpaid > 0 && paidCount > 0 ? ", " : ""}${paidCount > 0 ? `${paidCount} paid` : ""}` : `${paidCount} paid`})
-                      </span>
-                    </span>
-                  )}
+                  {showAll
+                    ? "Show less"
+                    : `Show all (${hiddenUnpaid > 0 ? `${hiddenUnpaid} unpaid` : `${paidCount} paid`})`}
                 </button>
               )}
             </>
           )}
 
-          <div className="px-4 py-2.5 bg-neutral-950/40 border-t border-neutral-800/70 flex items-center justify-between">
+          <div className="inst-footer">
             {addingInst ? (
               <ManualInstallmentForm
                 currency={currency}
@@ -669,11 +621,11 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
               />
             ) : (
               <>
-                <button onClick={() => setAddingInst(true)} className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
-                  <Plus size={12} /> Add installment
+                <button className="add-inst" onClick={() => setAddingInst(true)}>
+                  <Plus size={12} strokeWidth={1.75} /> Add installment
                 </button>
-                <span className="text-xs text-neutral-500">
-                  Total <span className="text-neutral-300">{formatMoney(total, currency)}</span>
+                <span className="total-lbl">
+                  Total <span>{formatMoney(total, currency)}</span>
                 </span>
               </>
             )}
@@ -696,35 +648,37 @@ function ManualInstallmentForm({ currency, onCancel, onAdd }) {
   };
 
   return (
-    <div className="w-full space-y-2">
-      <div className="flex gap-2">
+    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", gap: 8 }}>
         <input
           type="text"
           placeholder="Label"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          className="flex-1 px-3 py-2 rounded-lg bg-neutral-950 border border-neutral-800 text-sm focus:outline-none focus:border-emerald-500/50"
+          className="glass-input"
+          style={{ flex: 1 }}
         />
-        <div className="relative w-28">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">{currency}</span>
+        <div style={{ position: "relative", width: 110 }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--fg-3)", font: "500 13px var(--font)", pointerEvents: "none" }}>
+            {currency}
+          </span>
           <input
             type="number"
             inputMode="decimal"
             placeholder="0.00"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full pl-10 pr-2 py-2 rounded-lg bg-neutral-950 border border-neutral-800 text-sm focus:outline-none focus:border-emerald-500/50"
+            className="glass-input"
+            style={{ paddingLeft: "2.8rem" }}
           />
         </div>
       </div>
-      <div className="flex gap-2">
-        <DatePickerField value={dueDate} onChange={setDueDate} />
-        <button onClick={onCancel} className="px-3 rounded-lg border border-neutral-800 text-xs text-neutral-300">
-          Cancel
-        </button>
-        <button onClick={submit} className="px-4 rounded-lg bg-emerald-500 text-neutral-950 text-sm font-medium hover:bg-emerald-400">
-          Add
-        </button>
+      <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <DatePickerField value={dueDate} onChange={setDueDate} />
+        </div>
+        <button onClick={onCancel} className="glass-btn-secondary" style={{ padding: "0 14px" }}>Cancel</button>
+        <button onClick={submit} className="glass-btn-primary" style={{ padding: "0 16px" }}>Add</button>
       </div>
     </div>
   );

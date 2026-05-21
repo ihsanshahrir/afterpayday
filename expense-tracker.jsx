@@ -18,11 +18,88 @@ import Commitments from "./components/Commitments.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
 import HistorySheet from "./components/HistorySheet.jsx";
 
+const CHIPS = [
+  { id: "food",  label: "☕ Food" },
+  { id: "fuel",  label: "⛽ Fuel" },
+  { id: "shop",  label: "🛍 Shop" },
+  { id: "other", label: "• Other" },
+];
+
+function AddSheet({ open, currency, onClose, onSave }) {
+  const [amount, setAmount] = useState("");
+  const [desc, setDesc] = useState("");
+  const [cat, setCat] = useState("food");
+  const amtRef = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => amtRef.current && amtRef.current.focus(), 280);
+    } else {
+      setAmount("");
+      setDesc("");
+      setCat("food");
+    }
+  }, [open]);
+
+  const a = parseFloat(amount);
+  const valid = isFinite(a) && a > 0;
+
+  const submit = () => {
+    if (!valid) return;
+    onSave(a, desc.trim(), cat);
+  };
+
+  return (
+    <>
+      <div className={`scrim${open ? " on" : ""}`} onClick={onClose} />
+      <div className={`sheet${open ? " on" : ""}`}>
+        <div className="grab" />
+        <div className="stitle">Add to <b>today</b></div>
+        <div className="amount-input">
+          <span className="sym">{currency}</span>
+          <input
+            ref={amtRef}
+            inputMode="decimal"
+            placeholder="0.00"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+          />
+        </div>
+        <input
+          className="desc-input"
+          placeholder="What did you spend on?"
+          value={desc}
+          onChange={(e) => setDesc(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+        />
+        <div className="chips">
+          {CHIPS.map((c) => (
+            <button
+              key={c.id}
+              className={cat === c.id ? "on" : ""}
+              onClick={() => setCat(c.id)}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+        <div className="sheet-actions">
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" disabled={!valid} onClick={submit}>
+            Save expense
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ---------- root ----------
 export default function App() {
   const [showSplash] = useState(() => {
-    if (sessionStorage.getItem('afterpayday-splash')) return false;
-    sessionStorage.setItem('afterpayday-splash', '1');
+    if (sessionStorage.getItem("afterpayday-splash")) return false;
+    sessionStorage.setItem("afterpayday-splash", "1");
     return true;
   });
   const [splashDone, setSplashDone] = useState(!showSplash);
@@ -32,16 +109,13 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(ONBOARDING_KEY));
   const [storageError, setStorageError] = useState(false);
+  const [showAddSheet, setShowAddSheet] = useState(false);
 
   useEffect(() => {
     const ok = saveState(state);
     if (!ok) setStorageError(true);
   }, [state]);
 
-  // Auto-snapshot logic for month rollover.
-  // Runs on mount and whenever the tab becomes visible (covers the user
-  // returning to the app after midnight). Latest state is read via a ref
-  // so the effect itself does not depend on every expense field.
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; });
 
@@ -86,16 +160,15 @@ export default function App() {
 
     checkRollover();
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') checkRollover();
+      if (document.visibilityState === "visible") checkRollover();
     };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
 
-  // Prompt for salary on very first run (skip if onboarding is active — it will open settings on completion)
   useEffect(() => {
     if (!localStorage.getItem(ONBOARDING_KEY) && state.settings.salary === 0 && state.fixedExpenses.length === 0 && state.debtGroups.length === 0 && state.dailyExpenses.length === 0) {
-      return; // new user: let onboarding run first
+      return;
     }
     if (state.settings.salary === 0 && state.fixedExpenses.length === 0 && state.debtGroups.length === 0 && state.dailyExpenses.length === 0) {
       setShowSettings(true);
@@ -172,11 +245,11 @@ export default function App() {
   const removeFixedExpense = (id) =>
     setState((s) => ({ ...s, fixedExpenses: s.fixedExpenses.filter((e) => e.id !== id) }));
 
-  const addDailyExpense = (amount, description) =>
+  const addDailyExpense = (amount, description, category = "other") =>
     setState((s) => ({
       ...s,
       dailyExpenses: [
-        { id: uid(), amount: Number(amount), description, date: todayISO() },
+        { id: uid(), amount: Number(amount), description, date: todayISO(), category },
         ...s.dailyExpenses,
       ],
     }));
@@ -232,92 +305,131 @@ export default function App() {
 
   return (
     <>
-    {showOnboarding && <OnboardingSlides onDone={handleOnboardingDone} />}
-    {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
-    <div className="min-h-dvh bg-neutral-950 text-neutral-100 antialiased overflow-x-hidden" style={{ fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" }}>
-      <div className="max-w-md mx-auto" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
-        {/* Header */}
-        <header className="px-5 pb-4 flex items-center justify-between" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))' }}>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center overflow-hidden">
-              <img src="/app-icon.png" alt="App Icon" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-widest text-neutral-600">AfterPayday</div>
-              <div className="text-base font-semibold text-emerald-400">{monthLabel()}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowOnboarding(true)}
-              className="w-9 h-9 rounded-lg border border-neutral-800 bg-neutral-900/50 flex items-center justify-center hover:bg-neutral-800 transition-colors"
-              aria-label="Help"
-            >
-              <HelpCircle size={16} className="text-neutral-400" />
-            </button>
-            <button
-              onClick={() => setShowHistory(true)}
-              className="w-9 h-9 rounded-lg border border-neutral-800 bg-neutral-900/50 flex items-center justify-center hover:bg-neutral-800 transition-colors"
-              aria-label="History"
-            >
-              <History size={16} className="text-neutral-400" />
-            </button>
-            <button
-              onClick={() => setShowSettings(true)}
-              className="w-9 h-9 rounded-lg border border-neutral-800 bg-neutral-900/50 flex items-center justify-center hover:bg-neutral-800 transition-colors"
-              aria-label="Settings"
-            >
-              <SettingsIcon size={16} className="text-neutral-400" />
-            </button>
-          </div>
-        </header>
+      {showOnboarding && <OnboardingSlides onDone={handleOnboardingDone} />}
+      {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
 
-        {/* Content */}
-        {tab === "dashboard" ? (
-          <Dashboard
-            currency={currency}
-            salary={state.settings.salary}
-            fixedTotal={fixedTotal}
-            fixedGrandTotal={fixedGrandTotal}
-            installmentsTotalThisMonth={installmentsTotalThisMonth}
-            installmentsUnpaidThisMonth={installmentsUnpaidThisMonth}
-            dailyThisMonth={dailyThisMonth}
-            safeToSpend={safeToSpend}
-            dailyExpenses={state.dailyExpenses}
-            onAddDaily={addDailyExpense}
-            onRemoveDaily={removeDailyExpense}
-          />
-        ) : (
-          <Commitments
-            currency={currency}
-            fixedExpenses={state.fixedExpenses}
-            fixedTotal={fixedTotal}
-            fixedGrandTotal={fixedGrandTotal}
-            debtGroups={state.debtGroups}
-            onAddFixed={addFixedExpense}
-            onRemoveFixed={removeFixedExpense}
-            onToggleFixed={toggleFixedPaid}
-            onAddDebtGroup={addDebtGroup}
-            onRemoveDebtGroup={removeDebtGroup}
-            onToggleInstallment={toggleInstallmentPaid}
-            onAddInstallment={addInstallmentToGroup}
-            onRemoveInstallment={removeInstallment}
-          />
-        )}
+      <div
+        className="min-h-dvh antialiased overflow-x-hidden"
+        style={{ background: "var(--bg-base)" }}
+      >
+        {/* Mood layer — fixed blurred blobs */}
+        <div className="mood">
+          <div className="blob blob-1" />
+          <div className="blob blob-2" />
+          <div className="blob blob-3" />
+          <div className="blob blob-4" />
+          <div className="grain" />
+        </div>
 
-        {/* Tab bar */}
-        <nav
-          className="fixed bottom-0 left-0 right-0 z-30 border-t border-neutral-900 bg-neutral-950 backdrop-blur"
+        <div
+          className="max-w-md mx-auto"
           style={{
-            paddingBottom: 'env(safe-area-inset-bottom)',
-            minHeight: 'calc(5.5rem + env(safe-area-inset-bottom))'
+            position: "relative",
+            zIndex: 1,
+            paddingTop: "env(safe-area-inset-top)",
+            paddingBottom: "calc(96px + env(safe-area-inset-bottom))",
           }}
         >
-          <div className="max-w-md mx-auto grid grid-cols-2 h-full">
-            <TabButton active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={LayoutDashboard} label="Dashboard" />
-            <TabButton active={tab === "commitments"} onClick={() => setTab("commitments")} icon={ListChecks} label="Commitments" />
+          {/* Header */}
+          <header className="glass appheader" style={{ margin: "12px 14px 0" }}>
+            <div className="av">
+              <img src="/app-icon.png" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} />
+            </div>
+            <div className="who">
+              <div className="h">AfterPayday</div>
+              <div className="n">{monthLabel()}</div>
+            </div>
+            <button className="iconbtn" onClick={() => setShowOnboarding(true)} aria-label="Help">
+              <HelpCircle size={16} strokeWidth={1.75} />
+            </button>
+            <button className="iconbtn" onClick={() => setShowHistory(true)} aria-label="History">
+              <History size={16} strokeWidth={1.75} />
+            </button>
+            <button className="iconbtn" onClick={() => setShowSettings(true)} aria-label="Settings">
+              <SettingsIcon size={16} strokeWidth={1.75} />
+            </button>
+          </header>
+
+          {/* Content */}
+          {tab === "dashboard" ? (
+            <Dashboard
+              currency={currency}
+              salary={state.settings.salary}
+              fixedTotal={fixedTotal}
+              fixedGrandTotal={fixedGrandTotal}
+              installmentsTotalThisMonth={installmentsTotalThisMonth}
+              installmentsUnpaidThisMonth={installmentsUnpaidThisMonth}
+              dailyThisMonth={dailyThisMonth}
+              safeToSpend={safeToSpend}
+              dailyExpenses={state.dailyExpenses}
+              onRemoveDaily={removeDailyExpense}
+            />
+          ) : (
+            <Commitments
+              currency={currency}
+              fixedExpenses={state.fixedExpenses}
+              fixedTotal={fixedTotal}
+              fixedGrandTotal={fixedGrandTotal}
+              debtGroups={state.debtGroups}
+              onAddFixed={addFixedExpense}
+              onRemoveFixed={removeFixedExpense}
+              onToggleFixed={toggleFixedPaid}
+              onAddDebtGroup={addDebtGroup}
+              onRemoveDebtGroup={removeDebtGroup}
+              onToggleInstallment={toggleInstallmentPaid}
+              onAddInstallment={addInstallmentToGroup}
+              onRemoveInstallment={removeInstallment}
+            />
+          )}
+        </div>
+
+        {/* Floating tab bar */}
+        <nav
+          style={{
+            position: "fixed",
+            bottom: "calc(14px + env(safe-area-inset-bottom))",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "calc(100% - 28px)",
+            maxWidth: 420,
+            zIndex: 30,
+          }}
+        >
+          <div className="glass tabbar">
+            <button
+              className={tab === "dashboard" ? "active" : ""}
+              onClick={() => setTab("dashboard")}
+            >
+              <LayoutDashboard size={18} strokeWidth={1.75} />
+              <span>Today</span>
+            </button>
+            <button
+              className={tab === "commitments" ? "active" : ""}
+              onClick={() => setTab("commitments")}
+            >
+              <ListChecks size={18} strokeWidth={1.75} />
+              <span>Commit</span>
+            </button>
+            <button
+              className="fab"
+              onClick={() => setShowAddSheet(true)}
+              aria-label="Add expense"
+            >
+              ＋
+            </button>
           </div>
         </nav>
+
+        {/* Add Expense Sheet */}
+        <AddSheet
+          open={showAddSheet}
+          currency={currency}
+          onClose={() => setShowAddSheet(false)}
+          onSave={(amount, desc, cat) => {
+            addDailyExpense(amount, desc, cat);
+            setShowAddSheet(false);
+          }}
+        />
 
         {showSettings && (
           <SettingsSheet
@@ -353,23 +465,6 @@ export default function App() {
           </div>
         )}
       </div>
-    </div>
     </>
   );
 }
-
-// ---------- tab button ----------
-function TabButton({ active, onClick, icon: Icon, label }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex flex-col items-center gap-1 py-3 transition-colors ${
-        active ? "text-emerald-400" : "text-neutral-500 hover:text-neutral-300"
-      }`}
-    >
-      <Icon size={18} />
-      <span className="text-[11px] tracking-wide">{label}</span>
-    </button>
-  );
-}
-
