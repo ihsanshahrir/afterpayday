@@ -110,6 +110,7 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
           <input
             type="text"
             placeholder="Name (e.g. Rent)"
+            aria-label="Expense name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="glass-input"
@@ -124,6 +125,7 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
                 type="number"
                 inputMode="decimal"
                 placeholder="0.00"
+                aria-label={`Amount in ${currency}`}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && submit()}
@@ -208,6 +210,7 @@ function DebtSection({ currency, groups, onAddGroup, onRemoveGroup, onToggle, on
         <button
           onClick={() => setCreating((v) => !v)}
           className={creating ? "cancel-add" : "add"}
+          aria-label={creating ? "Cancel" : "Add debt group"}
         >
           {creating ? <><X size={13} strokeWidth={1.75} /> Cancel</> : <><Plus size={13} strokeWidth={1.75} /> New group</>}
         </button>
@@ -322,6 +325,7 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
       <input
         type="text"
         placeholder="Group name (e.g. Macbook Air M4)"
+        aria-label="Debt group name"
         value={name}
         onChange={(e) => setName(e.target.value)}
         className="glass-input"
@@ -338,6 +342,7 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
                 type="number"
                 inputMode="decimal"
                 placeholder="Total amount"
+                aria-label={`Total amount in ${currency}`}
                 value={total}
                 onChange={(e) => setTotal(e.target.value)}
                 className="glass-input"
@@ -348,6 +353,7 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
               type="number"
               inputMode="numeric"
               placeholder="Months"
+              aria-label="Number of months"
               value={months}
               onChange={(e) => setMonths(e.target.value)}
               className="glass-input"
@@ -388,6 +394,7 @@ function DatePickerField({ value, onChange }) {
     <button
       type="button"
       onClick={() => setShowPicker(true)}
+      aria-label={`Selected date: ${displayText}. Tap to change.`}
       style={{
         width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "11px 14px", borderRadius: 12,
@@ -441,6 +448,9 @@ function DatePickerModal({ mode, initialDay, initialMonth, initialYear, onConfir
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
       className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ animation: `${isClosing ? "iosPickerFadeOut" : "iosPickerFadeIn"} 0.28s ease forwards` }}
       onClick={(e) => { e.stopPropagation(); close(onCancel); }}
@@ -653,6 +663,7 @@ function ManualInstallmentForm({ currency, onCancel, onAdd }) {
         <input
           type="text"
           placeholder="Label"
+          aria-label="Installment label"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           className="glass-input"
@@ -666,6 +677,7 @@ function ManualInstallmentForm({ currency, onCancel, onAdd }) {
             type="number"
             inputMode="decimal"
             placeholder="0.00"
+            aria-label={`Amount in ${currency}`}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="glass-input"

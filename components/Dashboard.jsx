@@ -47,7 +47,7 @@ export default function Dashboard({
       {/* Hero */}
       <div className="glass hero" style={{ margin: "12px 14px 0" }}>
         <div className="lbl">
-          <span className="live" />
+          <span className="live" aria-hidden="true" />
           Safe to spend · live
         </div>
         <div className={`num${isNegative ? " neg" : ""}`}>
@@ -127,7 +127,7 @@ export default function Dashboard({
             const isRefund = Number(e.amount) < 0;
             return (
               <div key={e.id} className={`it ${isRefund ? "in" : "out"}`}>
-                <div className="ic" style={{ background: meta.bg, color: meta.color }}>
+                <div className="ic" style={{ background: meta.bg, color: meta.color }} aria-hidden="true">
                   {meta.icon}
                 </div>
                 <div className="text">

@@ -52,15 +52,21 @@ function AddSheet({ open, currency, onClose, onSave }) {
   return (
     <>
       <div className={`scrim${open ? " on" : ""}`} onClick={onClose} />
-      <div className={`sheet${open ? " on" : ""}`}>
+      <div
+        className={`sheet${open ? " on" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sheet-title"
+      >
         <div className="grab" />
-        <div className="stitle">Add to <b>today</b></div>
+        <div className="stitle" id="sheet-title">Add to <b>today</b></div>
         <div className="amount-input">
-          <span className="sym">{currency}</span>
+          <span className="sym" aria-hidden="true">{currency}</span>
           <input
             ref={amtRef}
             inputMode="decimal"
             placeholder="0.00"
+            aria-label={`Amount in ${currency}`}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
@@ -69,6 +75,7 @@ function AddSheet({ open, currency, onClose, onSave }) {
         <input
           className="desc-input"
           placeholder="What did you spend on?"
+          aria-label="Expense description"
           value={desc}
           onChange={(e) => setDesc(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
