@@ -21,7 +21,7 @@ export default function WheelColumn({ items, selectedIndex, onChange }) {
   }, []);
 
   useEffect(() => {
-    scrollToIndex(selectedIndex, false);
+    requestAnimationFrame(() => scrollToIndex(selectedIndex, false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -95,11 +95,11 @@ export default function WheelColumn({ items, selectedIndex, onChange }) {
       />
       <div
         className="absolute top-0 left-0 right-0 z-20 pointer-events-none"
-        style={{ height: padItems * ITEM_H, background: 'linear-gradient(180deg, rgba(28,28,28,0.95) 0%, transparent 100%)' }}
+        style={{ height: padItems * ITEM_H, background: 'linear-gradient(180deg, rgba(20,16,40,0.94) 0%, transparent 100%)' }}
       />
       <div
         className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none"
-        style={{ height: padItems * ITEM_H, background: 'linear-gradient(0deg, rgba(28,28,28,0.95) 0%, transparent 100%)' }}
+        style={{ height: padItems * ITEM_H, background: 'linear-gradient(0deg, rgba(20,16,40,0.94) 0%, transparent 100%)' }}
       />
       <div
         ref={containerRef}
