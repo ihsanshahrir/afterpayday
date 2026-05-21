@@ -334,7 +334,7 @@ export default function App() {
             position: "relative",
             zIndex: 1,
             paddingTop: "env(safe-area-inset-top)",
-            paddingBottom: "calc(96px + env(safe-area-inset-bottom))",
+            paddingBottom: "calc(88px + env(safe-area-inset-bottom))",
           }}
         >
           {/* Header */}
@@ -399,9 +399,8 @@ export default function App() {
             right: 0,
             zIndex: 30,
             display: "flex",
-            justifyContent: "center",
-            paddingBottom: "env(safe-area-inset-bottom)",
-            background: "linear-gradient(to bottom, transparent, var(--bg-base) 55%)",
+            flexDirection: "column",
+            alignItems: "center",
           }}
         >
           <div
@@ -409,7 +408,7 @@ export default function App() {
             style={{
               width: "calc(100% - 28px)",
               maxWidth: 420,
-              margin: "8px 0",
+              marginBottom: "max(8px, env(safe-area-inset-bottom))",
             }}
           >
             <button
