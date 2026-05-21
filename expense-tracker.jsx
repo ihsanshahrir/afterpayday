@@ -308,9 +308,12 @@ export default function App() {
         {/* Tab bar */}
         <nav
           className="fixed bottom-0 left-0 right-0 z-30 border-t border-neutral-900 bg-neutral-950 backdrop-blur"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          style={{
+            paddingBottom: 'env(safe-area-inset-bottom)',
+            minHeight: 'calc(5.5rem + env(safe-area-inset-bottom))'
+          }}
         >
-          <div className="max-w-md mx-auto grid grid-cols-2">
+          <div className="max-w-md mx-auto grid grid-cols-2 h-full">
             <TabButton active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={LayoutDashboard} label="Dashboard" />
             <TabButton active={tab === "commitments"} onClick={() => setTab("commitments")} icon={ListChecks} label="Commitments" />
           </div>
