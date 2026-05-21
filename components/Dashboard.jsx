@@ -38,9 +38,8 @@ export default function Dashboard({
   const daysLeft = Math.max(daysInMonth - dayN + 1, 1);
   const perDay = safeToSpend / daysLeft;
 
-  const absVal = Math.abs(safeToSpend);
-  const intPart = Math.floor(absVal).toLocaleString("en-MY");
-  const centPart = ((absVal % 1) * 100).toFixed(0).padStart(2, "0");
+  const [intRaw, centPart] = Math.abs(safeToSpend).toFixed(2).split(".");
+  const intPart = Number(intRaw).toLocaleString("en-MY");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 8 }}>
