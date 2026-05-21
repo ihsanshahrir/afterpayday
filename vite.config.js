@@ -13,7 +13,7 @@ export default defineConfig({
         short_name: 'AfterPayday',
         description: 'Track your monthly expenses, debt, and income.',
         theme_color: '#10b981',
-        background_color: '#0a0a0a',
+        background_color: '#06040e',
         display: 'standalone',
         orientation: 'portrait-primary',
         scope: '/',
