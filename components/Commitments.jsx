@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Receipt, Plus, X, Check, Trash2, CreditCard,
   Calendar,
@@ -379,7 +380,7 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
 
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={onCancel} className="glass-btn-secondary" style={{ flex: 1 }}>Cancel</button>
-        <button onClick={submit} className="glass-btn-primary" style={{ flex: 1 }}>Create group</button>
+        <button onClick={submit} className="glass-btn-primary" style={{ flex: 1 }}>Confirm</button>
       </div>
     </div>
   );
@@ -391,20 +392,22 @@ function DatePickerField({ value, onChange }) {
   const displayText = `${dd} ${MONTHS_SHORT[mm - 1]} ${yy}`;
 
   return (
-    <button
-      type="button"
-      onClick={() => setShowPicker(true)}
-      aria-label={`Selected date: ${displayText}. Tap to change.`}
-      style={{
-        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "11px 14px", borderRadius: 12,
-        background: "var(--glass)", border: "1px solid rgba(52,211,153,0.35)",
-        color: "var(--fg)", font: "500 14px var(--font)",
-        transition: "border-color 150ms", cursor: "pointer",
-      }}
-    >
-      <span>{displayText}</span>
-      <Calendar size={14} style={{ color: "var(--fg-3)" }} strokeWidth={1.75} />
+    <div>
+      <button
+        type="button"
+        onClick={() => setShowPicker(true)}
+        aria-label={`Selected date: ${displayText}. Tap to change.`}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "11px 14px", borderRadius: 12,
+          background: "var(--glass)", border: "1px solid rgba(52,211,153,0.35)",
+          color: "var(--fg)", font: "500 14px var(--font)",
+          transition: "border-color 150ms", cursor: "pointer",
+        }}
+      >
+        <span>{displayText}</span>
+        <Calendar size={14} style={{ color: "var(--fg-3)" }} strokeWidth={1.75} />
+      </button>
       {showPicker && (
         <DatePickerModal
           mode="date"
@@ -418,7 +421,7 @@ function DatePickerField({ value, onChange }) {
           onCancel={() => setShowPicker(false)}
         />
       )}
-    </button>
+    </div>
   );
 }
 
@@ -426,7 +429,7 @@ function DatePickerModal({ mode, initialDay, initialMonth, initialYear, onConfir
   const [selectedDay, setSelectedDay] = useState(initialDay || 1);
   const [selectedMonth, setSelectedMonth] = useState(initialMonth);
   const [selectedYear, setSelectedYear] = useState(initialYear);
-  const [isClosing, setIsClosing] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 11 }, (_, i) => currentYear - 2 + i);
@@ -436,82 +439,78 @@ function DatePickerModal({ mode, initialDay, initialMonth, initialYear, onConfir
     if (selectedDay > maxDay) setSelectedDay(maxDay);
   }, [selectedMonth, selectedYear, maxDay, selectedDay]);
 
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setIsOpen(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   const dayItems = Array.from({ length: maxDay }, (_, i) => String(i + 1));
 
-  const close = (callback) => {
-    setIsClosing(true);
-    setTimeout(callback, 280);
+  const confirm = () => {
+    setIsOpen(false);
+    setTimeout(() => onConfirm(selectedDay, selectedMonth, selectedYear), 400);
+  };
+
+  const cancel = () => {
+    setIsOpen(false);
+    setTimeout(onCancel, 400);
   };
 
   const isDateMode = mode === "date";
-  const title = isDateMode ? "Select Date" : "Select Month";
+  const title = isDateMode ? "Select date" : "Select month";
 
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ animation: `${isClosing ? "iosPickerFadeOut" : "iosPickerFadeIn"} 0.28s ease forwards` }}
-      onClick={(e) => { e.stopPropagation(); close(onCancel); }}
-    >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+  return createPortal(
+    <>
+      <div className={`scrim${isOpen ? " on" : ""}`} onClick={cancel} />
       <div
-        className="relative w-full max-w-md rounded-t-2xl border-t border-neutral-700/50 overflow-hidden"
-        style={{
-          background: "linear-gradient(180deg, rgba(38,38,38,0.98) 0%, rgba(23,23,23,0.99) 100%)",
-          animation: `${isClosing ? "iosPickerSlideDown" : "iosPickerSlideUp"} 0.32s cubic-bezier(0.32, 0.72, 0, 1) forwards`,
-        }}
+        className={`sheet${isOpen ? " on" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <button onClick={() => close(onCancel)} className="text-sm text-neutral-400 hover:text-neutral-200 transition-colors">
-            Cancel
-          </button>
-          <span className="text-sm font-medium text-neutral-200">{title}</span>
-          <button
-            onClick={() => close(() => onConfirm(selectedDay, selectedMonth, selectedYear))}
-            className="text-sm font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
-          >
-            Done
-          </button>
-        </div>
+        <div className="grab" />
 
-        <div className="flex items-center justify-center px-4 pb-8 pt-2" style={{ height: 220 }}>
+        {/* title */}
+        <p style={{ margin: "0 0 16px", font: "700 22px/1 var(--font)", letterSpacing: "-0.02em", color: "var(--fg)" }}>{title}</p>
+
+        {/* wheel columns */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: isDateMode ? "1fr 1.4fr 1fr" : "1fr",
+          gap: 8,
+          margin: "0 0 4px",
+          position: "relative",
+        }}>
+          {/* center highlight band */}
+          <div style={{
+            position: "absolute", left: 0, right: 0,
+            top: "50%", height: 44, transform: "translateY(-50%)",
+            background: "rgba(255,255,255,0.08)",
+            borderRadius: 12, border: "1px solid rgba(255,255,255,0.10)",
+            zIndex: 0, pointerEvents: "none",
+          }} />
           {isDateMode && (
-            <div style={{ width: 70, height: 180 }} className="relative">
-              <WheelColumn
-                key={`day-${maxDay}`}
-                items={dayItems}
-                selectedIndex={selectedDay - 1}
-                onChange={(i) => setSelectedDay(i + 1)}
-              />
+            <div style={{ position: "relative", height: 200 }}>
+              <WheelColumn key={`day-${maxDay}`} items={dayItems} selectedIndex={selectedDay - 1} onChange={(i) => setSelectedDay(i + 1)} />
             </div>
           )}
-          <div className="flex-1 relative" style={{ height: 180 }}>
-            <WheelColumn
-              items={MONTHS}
-              selectedIndex={selectedMonth - 1}
-              onChange={(i) => setSelectedMonth(i + 1)}
-            />
+          <div style={{ position: "relative", height: 200 }}>
+            <WheelColumn items={MONTHS} selectedIndex={selectedMonth - 1} onChange={(i) => setSelectedMonth(i + 1)} />
           </div>
-          <div style={{ width: 100, height: 180 }} className="relative">
-            <WheelColumn
-              items={years.map(String)}
-              selectedIndex={years.indexOf(selectedYear)}
-              onChange={(i) => setSelectedYear(years[i])}
-            />
+          <div style={{ position: "relative", height: 200 }}>
+            <WheelColumn items={years.map(String)} selectedIndex={years.indexOf(selectedYear)} onChange={(i) => setSelectedYear(years[i])} />
           </div>
         </div>
-      </div>
 
-      <style>{`
-        @keyframes iosPickerFadeIn { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes iosPickerFadeOut { from { opacity: 1 } to { opacity: 0 } }
-        @keyframes iosPickerSlideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
-        @keyframes iosPickerSlideDown { from { transform: translateY(0) } to { transform: translateY(100%) } }
-      `}</style>
-    </div>
+        {/* bottom actions */}
+        <div className="sheet-actions">
+          <button className="btn-secondary" onClick={cancel}>Cancel</button>
+          <button className="btn-primary" onClick={confirm}>Confirm</button>
+        </div>
+      </div>
+    </>,
+    document.body
   );
 }
 

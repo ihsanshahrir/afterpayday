@@ -394,15 +394,24 @@ export default function App() {
         <nav
           style={{
             position: "fixed",
-            bottom: "calc(14px + env(safe-area-inset-bottom))",
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: "calc(100% - 28px)",
-            maxWidth: 420,
+            bottom: 0,
+            left: 0,
+            right: 0,
             zIndex: 30,
+            display: "flex",
+            justifyContent: "center",
+            paddingBottom: "env(safe-area-inset-bottom)",
+            background: "linear-gradient(to bottom, transparent, var(--bg-base) 55%)",
           }}
         >
-          <div className="glass tabbar">
+          <div
+            className="glass tabbar"
+            style={{
+              width: "calc(100% - 28px)",
+              maxWidth: 420,
+              margin: "8px 0",
+            }}
+          >
             <button
               className={tab === "dashboard" ? "active" : ""}
               onClick={() => setTab("dashboard")}
