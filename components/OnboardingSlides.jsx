@@ -1,38 +1,38 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Wallet, TrendingDown, ListChecks, PlusCircle, CheckCircle } from "lucide-react";
 
-export const ONBOARDING_KEY = 'afterpayday-onboarding-done';
+export const ONBOARDING_KEY = "afterpayday-onboarding-done";
 
 const SLIDES = [
   {
     Icon: Wallet,
-    title: 'Welcome to AfterPayday',
-    body: 'Know exactly what you can spend after bills and commitments — every single day.',
-    color: '#10b981',
+    title: "Welcome to AfterPayday",
+    body: "Know exactly what you can spend after bills and commitments — every single day.",
+    color: "var(--emerald)",
   },
   {
     Icon: TrendingDown,
-    title: 'Your Safe to Spend',
-    body: "We subtract your fixed expenses and daily spending from your salary. What's left is yours to spend freely.",
-    color: '#6366f1',
+    title: "Your Safe to Spend",
+    body: "We subtract fixed bills and daily spending from your salary. What's left is yours to spend freely.",
+    color: "var(--violet)",
   },
   {
     Icon: ListChecks,
-    title: 'Track Commitments',
-    body: 'Add recurring bills and installment debts under Commitments. Mark them paid each month.',
-    color: '#f59e0b',
+    title: "Track commitments",
+    body: "Add recurring bills and installment debts. Mark them paid each month.",
+    color: "var(--amber)",
   },
   {
     Icon: PlusCircle,
-    title: 'Log Daily Expenses',
-    body: 'Tap the add area on the Dashboard to record what you spend today. Your Safe to Spend updates instantly.',
-    color: '#3b82f6',
+    title: "Log daily expenses",
+    body: "Tap + to record what you spend today. Your Safe to Spend updates instantly.",
+    color: "var(--pink)",
   },
   {
     Icon: CheckCircle,
-    title: "You're All Set",
-    body: 'Start by setting your monthly salary in Settings. AfterPayday will take care of the rest.',
-    color: '#10b981',
+    title: "You're all set",
+    body: "Start by setting your monthly salary in Settings. AfterPayday handles the rest.",
+    color: "var(--emerald)",
   },
 ];
 
@@ -49,17 +49,17 @@ export default function OnboardingSlides({ onDone }) {
   }, []);
 
   const handleDismiss = useCallback(() => {
-    localStorage.setItem(ONBOARDING_KEY, '1');
+    localStorage.setItem(ONBOARDING_KEY, "1");
     onDone();
   }, [onDone]);
 
   const handleNext = () => {
     if (isLast) { handleDismiss(); return; }
-    setCurrent(c => c + 1);
+    setCurrent((c) => c + 1);
   };
 
   const handlePrev = () => {
-    if (current > 0) setCurrent(c => c - 1);
+    if (current > 0) setCurrent((c) => c - 1);
   };
 
   const onTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
@@ -75,94 +75,61 @@ export default function OnboardingSlides({ onDone }) {
 
   return (
     <div
+      className="onboarding-stage"
+      style={{
+        position: "fixed",
+        opacity: visible ? 1 : 0,
+        transition: "opacity 0.3s ease",
+        userSelect: "none",
+      }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 200,
-        backgroundColor: '#0a0a0a',
-        display: 'flex', flexDirection: 'column',
-        fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
-        opacity: visible ? 1 : 0,
-        transition: 'opacity 0.3s ease',
-        userSelect: 'none',
-      }}
     >
-      {/* Skip */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: 'max(1.5rem, env(safe-area-inset-top)) 1.25rem 0' }}>
-        <button
-          onClick={handleDismiss}
-          style={{ color: '#737373', fontSize: 14, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
+      <button
+        className="onboarding-skip"
+        onClick={handleDismiss}
+        style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top))" }}
+      >
+        Skip
+      </button>
+
+      <div className="onboarding-content">
+        <div
+          className="onboarding-icon-halo"
+          style={{ "--ob-color": color }}
         >
-          Skip
-        </button>
-      </div>
-
-      {/* Slide content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 2rem', gap: 28 }}>
-        <div style={{
-          width: 96, height: 96, borderRadius: 28,
-          backgroundColor: color + '18',
-          border: `1.5px solid ${color}30`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Icon size={44} style={{ color }} strokeWidth={1.5} />
+          <Icon size={46} strokeWidth={1.75} />
         </div>
 
-        <div style={{ textAlign: 'center', maxWidth: 280 }}>
-          <div style={{ color: '#f5f5f5', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 12 }}>
-            {title}
-          </div>
-          <div style={{ color: '#737373', fontSize: 15.5, lineHeight: 1.6 }}>
-            {body}
-          </div>
+        <div className="onboarding-text">
+          <h2>{title}</h2>
+          <p>{body}</p>
         </div>
       </div>
 
-      {/* Dots */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 6, paddingBottom: 24 }}>
+      <div className="onboarding-dots">
         {SLIDES.map((_, i) => (
           <div
             key={i}
+            className={`dot${i === current ? " active" : ""}`}
             onClick={() => setCurrent(i)}
-            style={{
-              width: i === current ? 20 : 6,
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: i === current ? '#10b981' : '#404040',
-              transition: 'width 0.25s ease, background-color 0.25s ease',
-              cursor: 'pointer',
-            }}
           />
         ))}
       </div>
 
-      {/* Navigation buttons */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: `0 1.5rem max(1.5rem, env(safe-area-inset-bottom)) 1.5rem`,
-        paddingBottom: 'calc(max(1.5rem, env(safe-area-inset-bottom)) + 1rem)',
-      }}>
+      <div
+        className="onboarding-nav"
+        style={{ paddingBottom: "calc(max(1.5rem, env(safe-area-inset-bottom)) + 1rem)" }}
+      >
         <button
+          className={`back${current === 0 ? " hide" : ""}`}
           onClick={handlePrev}
-          style={{
-            color: current === 0 ? 'transparent' : '#737373',
-            background: 'none', border: 'none', cursor: current === 0 ? 'default' : 'pointer',
-            fontSize: 14, padding: '8px 12px',
-            pointerEvents: current === 0 ? 'none' : 'auto',
-          }}
+          aria-hidden={current === 0}
         >
           ← Back
         </button>
-        <button
-          onClick={handleNext}
-          style={{
-            backgroundColor: '#10b981', color: '#fff',
-            border: 'none', borderRadius: 12, cursor: 'pointer',
-            fontSize: 15, fontWeight: 600, padding: '12px 28px',
-            letterSpacing: '-0.01em',
-          }}
-        >
-          {isLast ? 'Get Started' : 'Next →'}
+        <button className="next" onClick={handleNext}>
+          {isLast ? "Get started" : "Next →"}
         </button>
       </div>
     </div>
