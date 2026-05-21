@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon-192.png', 'icon-512.png', 'icon-maskable-512.png'],
+      includeAssets: ['favicon.ico', 'favicon-32x32.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'],
       manifest: {
         name: 'AfterPayday',
         short_name: 'AfterPayday',
