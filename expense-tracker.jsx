@@ -316,8 +316,8 @@ export default function App() {
       {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
 
       <div
-        className="min-h-dvh antialiased overflow-x-hidden"
-        style={{ background: "var(--bg-base)" }}
+        className="antialiased overflow-x-hidden"
+        style={{ background: "var(--bg-base)", minHeight: "var(--app-height, 100dvh)" }}
       >
         {/* Mood layer — fixed blurred blobs */}
         <div className="mood">
