@@ -1,4 +1,4 @@
-export const formatMoney = (n, currency = "RM") => {
-  const v = Number.isFinite(n) ? n : 0;
-  return `${currency} ${v.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-};
+export const fmtNum = (n) =>
+  (Number.isFinite(n) ? n : 0).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+export const formatMoney = (n, currency = "RM") => `${currency} ${fmtNum(n)}`;
