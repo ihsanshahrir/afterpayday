@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
 export default function WheelColumn({ items, selectedIndex, onChange }) {
   const ITEM_H = 40;
@@ -11,8 +11,6 @@ export default function WheelColumn({ items, selectedIndex, onChange }) {
   const velocity = useRef(0);
   const lastY = useRef(0);
   const lastTime = useRef(0);
-  const rafId = useRef(null);
-
   const scrollToIndex = useCallback((idx, smooth = true) => {
     const el = containerRef.current;
     if (!el) return;
@@ -42,7 +40,6 @@ export default function WheelColumn({ items, selectedIndex, onChange }) {
     velocity.current = 0;
     lastY.current = e.clientY;
     lastTime.current = Date.now();
-    if (rafId.current) cancelAnimationFrame(rafId.current);
   };
 
   const handlePointerMove = (e) => {

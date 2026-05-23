@@ -7,7 +7,7 @@ import {
 import WheelColumn from "./WheelColumn.jsx";
 import { uid } from "../utils/id.js";
 import { todayISO, isFixedPaidThisMonth, isInCurrentMonth } from "../utils/date.js";
-import { formatMoney } from "../utils/money.js";
+import { formatMoney, fmtNum } from "../utils/money.js";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -19,9 +19,6 @@ const MONTHS_SHORT = [
 ];
 
 const daysInMonth = (month, year) => new Date(year, month, 0).getDate();
-
-const fmtNum = (n) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function Commitments({
   currency,

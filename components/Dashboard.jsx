@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { todayISO, isInCurrentMonth, monthLabel } from "../utils/date.js";
-
-const fmtNum = (n) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+import { fmtNum } from "../utils/money.js";
 
 const CATEGORY_META = {
   food:   { icon: "☕", bg: "rgba(252,211,77,0.18)",  color: "var(--amber)" },
