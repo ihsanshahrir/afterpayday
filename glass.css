@@ -36,13 +36,12 @@
 
 *, *:before, *:after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; min-height: 100dvh; min-height: var(--app-height, 100dvh); background: var(--bg-base); font-family: var(--font); -webkit-font-smoothing: antialiased; color: var(--fg); }
-body::after { content: ''; position: fixed; bottom: 0; left: 0; right: 0; height: env(safe-area-inset-bottom); background: var(--bg-base); z-index: 5; pointer-events: none; }
 button { font: inherit; cursor: pointer; }
 button:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
 input { font: inherit; }
 
 /* ----- mood blobs ------------------------------------------------- */
-.mood { position: fixed; inset: 0; z-index: 0; filter: saturate(1.15); pointer-events: none; overflow: hidden; }
+.mood { position: fixed; top: calc(-1 * env(safe-area-inset-top)); bottom: calc(-1 * env(safe-area-inset-bottom)); left: 0; right: 0; z-index: 0; background: var(--bg-base); filter: saturate(1.15); pointer-events: none; overflow: hidden; }
 .mood .blob { position: absolute; border-radius: 9999px; filter: blur(80px); }
 .blob-1 { width: 380px; height: 380px; background: #10b981; top: -80px; left: -90px; opacity: 0.75; }
 .blob-2 { width: 380px; height: 380px; background: #a78bfa; top: 220px; right: -140px; opacity: 0.78; }
