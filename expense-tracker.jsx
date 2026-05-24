@@ -27,7 +27,7 @@ const CHIPS = [
 
 /* --- TEMPORARY iOS safe-area diagnostic — remove once black-bar issue is resolved --- */
 const SHOW_SAFE_AREA_DEBUG = true;
-const BUILD_MARKER = "safearea-debug-2026-05-24-1";
+const BUILD_MARKER = "safearea-fix-2026-05-24-2";
 
 function SafeAreaDebug() {
   const [info, setInfo] = useState(null);
@@ -52,6 +52,16 @@ function SafeAreaDebug() {
       };
       probe.remove();
 
+      const measureVH = (unit) => {
+        const el = document.createElement("div");
+        el.style.cssText =
+          "position:fixed;top:0;left:0;width:0;visibility:hidden;height:" + unit + ";";
+        document.body.appendChild(el);
+        const h = el.offsetHeight;
+        el.remove();
+        return h;
+      };
+
       setInfo({
         insets,
         standalone: String(window.navigator.standalone),
@@ -64,6 +74,10 @@ function SafeAreaDebug() {
           getComputedStyle(document.documentElement)
             .getPropertyValue("--app-height")
             .trim() || "(unset)",
+        vh: measureVH("100vh"),
+        svh: measureVH("100svh"),
+        lvh: measureVH("100lvh"),
+        dvh: measureVH("100dvh"),
       });
     };
 
@@ -99,6 +113,7 @@ function SafeAreaDebug() {
 standalone(nav): ${info.standalone}   display-mode: ${String(info.displayMode)}
 safe-area-inset  T:${info.insets.top}  R:${info.insets.right}  B:${info.insets.bottom}  L:${info.insets.left}
 innerH:${info.innerH}  screenH:${info.screenH}  clientH:${info.clientH}  vvH:${info.vvH}
+vh:${info.vh}  svh:${info.svh}  lvh:${info.lvh}  dvh:${info.dvh}
 --app-height: ${info.appHeight}`}
     </div>
   );
