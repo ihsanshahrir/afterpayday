@@ -27,7 +27,7 @@ const CHIPS = [
 
 /* --- TEMPORARY iOS safe-area diagnostic — remove once black-bar issue is resolved --- */
 const SHOW_SAFE_AREA_DEBUG = true;
-const BUILD_MARKER = "safearea-fix-2026-05-24-2";
+const BUILD_MARKER = "safearea-fix-2026-05-24-3";
 
 function SafeAreaDebug() {
   const [info, setInfo] = useState(null);
