@@ -27,7 +27,7 @@ const CHIPS = [
 
 /* --- TEMPORARY iOS safe-area diagnostic — remove once black-bar issue is resolved --- */
 const SHOW_SAFE_AREA_DEBUG = true;
-const BUILD_MARKER = "safearea-fix-2026-05-24-3";
+const BUILD_MARKER = "safearea-fix-2026-05-24-4";
 
 function SafeAreaDebug() {
   const [info, setInfo] = useState(null);
@@ -412,7 +412,13 @@ export default function App() {
 
       <div
         className="antialiased overflow-x-hidden"
-        style={{ background: "var(--bg-base)", minHeight: "var(--app-height, 100dvh)" }}
+        style={{
+          background: "var(--bg-base)",
+          height: "100lvh",
+          overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
+          overscrollBehavior: "contain",
+        }}
       >
         {/* Mood layer — fixed blurred blobs */}
         <div className="mood">
