@@ -25,100 +25,6 @@ const CHIPS = [
   { id: "other", label: "• Other" },
 ];
 
-/* --- TEMPORARY iOS safe-area diagnostic — remove once black-bar issue is resolved --- */
-const SHOW_SAFE_AREA_DEBUG = true;
-const BUILD_MARKER = "safearea-fix-2026-05-24-4";
-
-function SafeAreaDebug() {
-  const [info, setInfo] = useState(null);
-
-  useEffect(() => {
-    const read = () => {
-      // env() can't be read off a custom property reliably; probe a real element instead.
-      const probe = document.createElement("div");
-      probe.style.cssText =
-        "position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;" +
-        "padding-top:env(safe-area-inset-top);" +
-        "padding-right:env(safe-area-inset-right);" +
-        "padding-bottom:env(safe-area-inset-bottom);" +
-        "padding-left:env(safe-area-inset-left);";
-      document.body.appendChild(probe);
-      const p = getComputedStyle(probe);
-      const insets = {
-        top: p.paddingTop,
-        right: p.paddingRight,
-        bottom: p.paddingBottom,
-        left: p.paddingLeft,
-      };
-      probe.remove();
-
-      const measureVH = (unit) => {
-        const el = document.createElement("div");
-        el.style.cssText =
-          "position:fixed;top:0;left:0;width:0;visibility:hidden;height:" + unit + ";";
-        document.body.appendChild(el);
-        const h = el.offsetHeight;
-        el.remove();
-        return h;
-      };
-
-      setInfo({
-        insets,
-        standalone: String(window.navigator.standalone),
-        displayMode: window.matchMedia("(display-mode: standalone)").matches,
-        innerH: window.innerHeight,
-        screenH: window.screen.height,
-        clientH: document.documentElement.clientHeight,
-        vvH: window.visualViewport ? Math.round(window.visualViewport.height) : "n/a",
-        appHeight:
-          getComputedStyle(document.documentElement)
-            .getPropertyValue("--app-height")
-            .trim() || "(unset)",
-        vh: measureVH("100vh"),
-        svh: measureVH("100svh"),
-        lvh: measureVH("100lvh"),
-        dvh: measureVH("100dvh"),
-      });
-    };
-
-    read();
-    window.addEventListener("resize", read);
-    window.addEventListener("orientationchange", read);
-    return () => {
-      window.removeEventListener("resize", read);
-      window.removeEventListener("orientationchange", read);
-    };
-  }, []);
-
-  if (!info) return null;
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 9999,
-        background: "magenta",
-        color: "#000",
-        font: "600 11px/1.35 ui-monospace, monospace",
-        padding: "8px 12px",
-        textAlign: "left",
-        pointerEvents: "none",
-        whiteSpace: "pre-wrap",
-      }}
-    >
-      {`BUILD: ${BUILD_MARKER}
-standalone(nav): ${info.standalone}   display-mode: ${String(info.displayMode)}
-safe-area-inset  T:${info.insets.top}  R:${info.insets.right}  B:${info.insets.bottom}  L:${info.insets.left}
-innerH:${info.innerH}  screenH:${info.screenH}  clientH:${info.clientH}  vvH:${info.vvH}
-vh:${info.vh}  svh:${info.svh}  lvh:${info.lvh}  dvh:${info.dvh}
---app-height: ${info.appHeight}`}
-    </div>
-  );
-}
-
 function AddSheet({ open, currency, onClose, onSave }) {
   const [amount, setAmount] = useState("");
   const [desc, setDesc] = useState("");
@@ -408,7 +314,6 @@ export default function App() {
     <>
       {showOnboarding && <OnboardingSlides onDone={handleOnboardingDone} />}
       {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
-      {SHOW_SAFE_AREA_DEBUG && <SafeAreaDebug />}
 
       <div
         className="antialiased overflow-x-hidden"
