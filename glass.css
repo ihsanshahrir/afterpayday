@@ -126,12 +126,15 @@ input { font: inherit; }
   box-shadow: 0 0 16px rgba(167,139,250,0.6);
   transition: width 500ms cubic-bezier(0.16,1,0.3,1);
 }
+.hero .progress .bar.over {
+  background: var(--rose);
+  box-shadow: 0 0 16px rgba(244,63,94,0.5);
+}
 .hero .ticks {
   display: flex; justify-content: space-between; margin-top: 8px;
   font: 500 9.5px var(--font); color: var(--fg-3); letter-spacing: 0.04em;
 }
-.hero .ticks .now { color: var(--fg); }
-.hero .ticks .now::before { content: "●"; margin-right: 3px; color: var(--violet); }
+.hero .ticks .reached { color: var(--fg); }
 
 /* ----- pod grid -------------------------------------------------- */
 .pods { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

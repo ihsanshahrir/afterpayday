@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
-import { todayISO, isInCurrentMonth, monthLabel } from "../utils/date.js";
-import { fmtNum } from "../utils/money.js";
+import { todayISO, isInCurrentMonth } from "../utils/date.js";
+import { fmtNum, fmtCompact } from "../utils/money.js";
 
 const CATEGORY_META = {
   food:   { icon: "☕", bg: "rgba(252,211,77,0.18)",  color: "var(--amber)" },
@@ -30,11 +30,10 @@ export default function Dashboard({
   const list = showAllMonth ? monthly : todays;
 
   const isNegative = safeToSpend < 0;
-  const dayN = new Date().getDate();
-  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-  const pct = Math.max(0, Math.min(100, (safeToSpend / Math.max(salary, 1)) * 100));
-  const daysLeft = Math.max(daysInMonth - dayN + 1, 1);
-  const perDay = safeToSpend / daysLeft;
+  const total = salary;
+  const spent = salary - safeToSpend;
+  const pctUsed = total > 0 ? Math.min(100, (spent / total) * 100) : 0;
+  const hasIncome = salary > 0;
 
   const [intRaw, centPart] = Math.abs(safeToSpend).toFixed(2).split(".");
   const intPart = Number(intRaw).toLocaleString("en-MY");
@@ -53,20 +52,25 @@ export default function Dashboard({
           <span className="c">.{centPart}</span>
         </div>
         <div className="sub">
-          {isNegative ? (
-            <>Over budget for <b>{monthLabel()}</b></>
+          {!hasIncome ? (
+            "Set your monthly income to start tracking"
+          ) : isNegative ? (
+            <>{currency} {fmtNum(spent)} spent · over by <b>{currency} {fmtNum(Math.abs(safeToSpend))}</b></>
           ) : (
-            <>Tracking <b>{currency} {fmtNum(perDay)}/day</b> through {monthLabel()}</>
+            <>{currency} {fmtNum(spent)} spent of <b>{currency} {fmtNum(total)}</b> this month</>
           )}
         </div>
         <div className="progress">
-          <div className="bar" style={{ width: `${pct}%` }} />
+          <div className={`bar${isNegative ? " over" : ""}`} style={{ width: `${pctUsed}%` }} />
         </div>
-        <div className="ticks">
-          {[1, 7, 14, 21, 28, daysInMonth].map((n) => (
-            <span key={n} className={n === dayN ? "now" : ""}>{n}</span>
-          ))}
-        </div>
+        {hasIncome && (
+          <div className="ticks">
+            {[0, 0.25, 0.5, 0.75, 1].map((f) => {
+              const v = total * f;
+              return <span key={f} className={v <= spent ? "reached" : ""}>{fmtCompact(v)}</span>;
+            })}
+          </div>
+        )}
       </div>
 
       {/* Pods */}
