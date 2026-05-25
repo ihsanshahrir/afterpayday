@@ -32,6 +32,12 @@
 
   --font:  "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --mono:  "Geist Mono", ui-monospace, monospace;
+
+  /* motion — one shared easing, tiered durations */
+  --ease-slide:    cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-sheet:     400ms;  /* full-screen sheets / modals (big travel) */
+  --dur-collapse:  300ms;  /* inline expand / collapse */
+  --dur-swap:      240ms;  /* list crossfade */
 }
 
 *, *:before, *:after { box-sizing: border-box; }
@@ -377,9 +383,34 @@ input { font: inherit; }
   -webkit-backdrop-filter: blur(60px) saturate(180%);
   box-shadow: 0 30px 80px -20px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.12);
   transform: translateY(120%);
-  transition: transform 400ms cubic-bezier(0.16,1,0.3,1);
+  transition: transform var(--dur-sheet) var(--ease-slide);
 }
 .sheet.on { transform: translateY(0); }
+
+/* ----- inline collapse (slide + fade, both directions) ----------- */
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows var(--collapse-dur, var(--dur-collapse)) var(--ease-slide),
+              opacity var(--collapse-dur, var(--dur-collapse)) var(--ease-slide);
+}
+.collapse.open { grid-template-rows: 1fr; opacity: 1; }
+.collapse > .collapse-inner { overflow: hidden; min-height: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .collapse { transition: opacity 1ms linear; }
+}
+
+/* ----- list crossfade (Today <-> This month) -------------------- */
+.swap-fade { animation: swapFade var(--dur-swap) var(--ease-slide); }
+@keyframes swapFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .swap-fade { animation: none; }
+}
 .sheet .grab { width: 38px; height: 4px; border-radius: 9999px; background: rgba(255,255,255,0.25); margin: -8px auto 16px; }
 .sheet .stitle { font: 600 16px var(--font); letter-spacing: -0.01em; margin-bottom: 16px; }
 .sheet .stitle b { color: var(--emerald); }
@@ -547,12 +578,6 @@ input { font: inherit; }
   border: 1px solid rgba(255,255,255,0.08);
   overflow: hidden;
   position: relative;
-  animation: currExpand 0.28s cubic-bezier(0.22, 1, 0.36, 1);
-  transform-origin: top;
-}
-@keyframes currExpand {
-  from { height: 0; margin-top: 0; opacity: 0; }
-  to   { height: 200px; margin-top: 8px; opacity: 1; }
 }
 
 /* ── empty-state card (history) ────────────────────────────────── */

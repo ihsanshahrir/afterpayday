@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, ChevronDown } from "lucide-react";
 import WheelColumn from "./WheelColumn";
+import Collapse from "./Collapse";
 
 const CURRENCIES = [
   { code: "RM",  flag: "🇲🇾", name: "Malaysian Ringgit" },
@@ -88,7 +89,7 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
             <span className="cur-name">{curr.name}</span>
             <ChevronDown className="cur-chev" size={18} strokeWidth={2} />
           </button>
-          {currencyOpen && (
+          <Collapse open={currencyOpen}>
             <div className="currency-dropdown">
               <WheelColumn
                 items={CURRENCIES.map((c) => `${c.flag}  ${c.code}`)}
@@ -96,7 +97,7 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
                 onChange={(idx) => setCurrency(CURRENCIES[idx].code)}
               />
             </div>
-          )}
+          </Collapse>
         </div>
 
         <div className="sheet-actions" style={{ marginTop: 28 }}>
