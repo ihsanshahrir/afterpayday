@@ -516,30 +516,26 @@ input { font: inherit; }
   font-variant-numeric: tabular-nums;
 }
 .field-block .input .sym { color: var(--fg-3); }
-.field-block .input.select { cursor: pointer; }
-.field-block .input.select .chev { margin-left: auto; color: var(--fg-3); display: flex; }
-.field-block .input.select.focus { border-color: rgba(52,211,153,0.6); background: var(--glass-strong); }
-.field-block .input .flag { font-size: 18px; line-height: 1; }
-.field-block .input .em-dash { color: var(--fg-3); margin: 0 4px; }
-.field-block .input .currency-name { color: var(--fg-2); }
 .field-block .input input.bare {
   background: transparent; border: 0; outline: none; color: var(--fg);
   font: inherit; flex: 1; min-width: 0; width: 100%;
   font-variant-numeric: tabular-nums;
 }
-.field-block .currency-list {
+.field-block .currency-wheel {
+  height: 200px;
+  background: rgba(255,255,255,0.04);
+  border-radius: var(--r-md);
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden;
+  position: relative;
+}
+.field-block .currency-wheel-label {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 0.04em;
   margin-top: 8px;
-  background: var(--glass); border: 1px solid var(--glass-edge);
-  border-radius: 14px; overflow: hidden;
 }
-.field-block .currency-list .opt {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 16px; cursor: pointer; color: var(--fg);
-  font: 500 14px var(--font);
-}
-.field-block .currency-list .opt + .opt { border-top: 1px solid rgba(255,255,255,0.05); }
-.field-block .currency-list .opt.on { background: var(--glass-strong); }
-.field-block .currency-list .opt .nm { color: var(--fg-3); font-weight: 400; }
 
 /* ── empty-state card (history) ────────────────────────────────── */
 .empty-card {

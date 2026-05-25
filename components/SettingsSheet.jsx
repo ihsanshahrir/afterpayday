@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { X, ChevronDown } from "lucide-react";
+import { X } from "lucide-react";
+import WheelColumn from "./WheelColumn";
 
 const CURRENCIES = [
   { code: "RM",  flag: "🇲🇾", name: "Malaysian Ringgit" },
@@ -13,7 +14,6 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
   const [isOpen, setIsOpen] = useState(false);
   const [salary, setSalary] = useState(String(settings.salary || ""));
   const [currency, setCurrency] = useState(settings.currency || "RM");
-  const [currencyOpen, setCurrencyOpen] = useState(false);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setIsOpen(true));
@@ -49,7 +49,7 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
         <div className="sheet-head">
           <div className="titles">
             <div className="eyebrow-sm">Settings</div>
-            <h3>Income &amp; currency</h3>
+            <h3>Wallet</h3>
           </div>
           <button className="close-btn" onClick={() => close(onClose)} aria-label="Close">
             <X size={15} strokeWidth={1.75} />
@@ -75,38 +75,14 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
 
         <div className="field-block">
           <div className="label">Currency</div>
-          <div
-            className={`input select${currencyOpen ? " focus" : ""}`}
-            onClick={() => setCurrencyOpen((v) => !v)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && setCurrencyOpen((v) => !v)}
-            aria-label={`Currency: ${curr.code}`}
-            aria-expanded={currencyOpen}
-          >
-            <span className="flag">{curr.flag}</span>
-            <span>{curr.code}</span>
-            <span className="em-dash">—</span>
-            <span className="currency-name">{curr.name}</span>
-            <div className="chev"><ChevronDown size={14} strokeWidth={1.75} /></div>
+          <div className="currency-wheel">
+            <WheelColumn
+              items={CURRENCIES.map((c) => `${c.flag}  ${c.code}`)}
+              selectedIndex={CURRENCIES.findIndex((c) => c.code === currency)}
+              onChange={(idx) => setCurrency(CURRENCIES[idx].code)}
+            />
           </div>
-          {currencyOpen && (
-            <div className="currency-list">
-              {CURRENCIES.map((c) => (
-                <div
-                  key={c.code}
-                  className={`opt${c.code === currency ? " on" : ""}`}
-                  onClick={() => { setCurrency(c.code); setCurrencyOpen(false); }}
-                  role="option"
-                  aria-selected={c.code === currency}
-                >
-                  <span className="flag">{c.flag}</span>
-                  <span>{c.code}</span>
-                  <span className="nm">— {c.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="currency-wheel-label">{curr.name}</div>
         </div>
 
         <div className="sheet-actions" style={{ marginTop: 28 }}>
