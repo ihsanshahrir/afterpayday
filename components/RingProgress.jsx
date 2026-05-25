@@ -14,7 +14,7 @@ export default function RingProgress({
   const offset = c * (1 - v);
 
   return (
-    <div className="ring" style={{ width: size, height: size }}>
+    <div className="donut-ring" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <defs>
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
