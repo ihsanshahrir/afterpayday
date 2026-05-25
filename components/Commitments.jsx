@@ -5,17 +5,14 @@ import {
   Calendar,
 } from "lucide-react";
 import WheelColumn from "./WheelColumn.jsx";
+import RingProgress from "./RingProgress.jsx";
 import { uid } from "../utils/id.js";
-import { todayISO, isFixedPaidThisMonth, isInCurrentMonth } from "../utils/date.js";
-import { formatMoney, fmtNum } from "../utils/money.js";
+import { todayISO, isFixedPaidThisMonth, isInCurrentMonth, isOverdue, fmtDate, MONTHS_SHORT } from "../utils/date.js";
+import { formatMoney } from "../utils/money.js";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
-];
-const MONTHS_SHORT = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
 const daysInMonth = (month, year) => new Date(year, month, 0).getDate();
@@ -68,6 +65,8 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
   const paidCount = items.filter((e) => isFixedPaidThisMonth(e)).length;
   const totalCount = items.length;
   const progress = totalCount > 0 ? paidCount / totalCount : 0;
+  const paidTotal = Math.max(0, total - unpaidTotal);
+  const allPaid = totalCount > 0 && paidCount === totalCount;
 
   const PREVIEW_COUNT = 4;
   const unpaidItems = items.filter((e) => !isFixedPaidThisMonth(e));
@@ -143,14 +142,39 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
         </div>
       ) : (
         <div className="glass fixed-card">
-          <div className="miniprog">
-            <div className="bar"><div style={{ width: `${progress * 100}%` }} /></div>
+          <div className="fc-head">
+            <RingProgress
+              value={progress}
+              size={64}
+              stroke={6}
+              gradientId="ring-fixed"
+              from="var(--amber)"
+              to="var(--emerald)"
+              label={`${paidCount}/${totalCount}`}
+              sublabel="paid"
+            />
+            <div className="fc-stats">
+              <div className="fc-stat">
+                <span className="k">Paid</span>
+                <span className="v paid">{formatMoney(paidTotal, currency)}</span>
+              </div>
+              <div className="fc-stat">
+                <span className="k">Remaining</span>
+                <span className="v">{formatMoney(unpaidTotal, currency)}</span>
+              </div>
+            </div>
           </div>
+
+          {allPaid && (
+            <div className="fc-done">
+              <Check size={14} strokeWidth={2.5} /> All paid this month
+            </div>
+          )}
 
           {visibleItems.map((e) => {
             const isPaid = isFixedPaidThisMonth(e);
             return (
-              <div key={e.id} className={`row${isPaid ? " paid" : ""}`}>
+              <div key={e.id} className={`fx-row${isPaid ? " paid" : ""}`}>
                 <button
                   className={`check${isPaid ? " on" : ""}`}
                   onClick={() => onToggle(e.id)}
@@ -159,13 +183,12 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
                   {isPaid && <Check size={12} style={{ color: "#06281d" }} strokeWidth={3} />}
                 </button>
                 <span className="name">{e.name}</span>
+                {isPaid && <span className="tag">PAID</span>}
                 <span className="amt">{formatMoney(e.amount, currency)}</span>
                 <button
+                  className="row-x"
                   onClick={() => onRemove(e.id)}
-                  style={{ background: "none", border: 0, color: "var(--fg-4)", padding: "4px", transition: "color 150ms ease", cursor: "pointer" }}
                   aria-label="Remove"
-                  onMouseEnter={(ev) => (ev.currentTarget.style.color = "var(--rose)")}
-                  onMouseLeave={(ev) => (ev.currentTarget.style.color = "var(--fg-4)")}
                 >
                   <Trash2 size={14} strokeWidth={1.75} />
                 </button>
@@ -183,14 +206,6 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
                 : `Show ${hiddenTotal} more${hiddenUnpaid > 0 ? ` (${hiddenUnpaid} unpaid)` : ""}`}
             </button>
           )}
-
-          <div className="footer">
-            <span className="l">Unpaid</span>
-            <span className="r">
-              {formatMoney(unpaidTotal, currency)}
-              <span className="of"> / {formatMoney(total, currency)}</span>
-            </span>
-          </div>
         </div>
       )}
     </div>
@@ -232,6 +247,7 @@ function DebtSection({ currency, groups, onAddGroup, onRemoveGroup, onToggle, on
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {groups.length > 0 && <DebtSummary currency={currency} groups={groups} />}
           {groups.map((g) => (
             <DebtGroupCard
               key={g.id}
@@ -245,6 +261,46 @@ function DebtSection({ currency, groups, onAddGroup, onRemoveGroup, onToggle, on
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function DebtSummary({ currency, groups }) {
+  const all = groups.flatMap((g) => g.installments);
+  const totalCount = all.length;
+  if (totalCount === 0) return null;
+
+  const paidCount = all.filter((i) => i.isPaid).length;
+  const remaining = all
+    .filter((i) => !i.isPaid)
+    .reduce((s, i) => s + Number(i.amount || 0), 0);
+  const thisMonthDue = all
+    .filter((i) => !i.isPaid && isInCurrentMonth(i.dueDate))
+    .reduce((s, i) => s + Number(i.amount || 0), 0);
+  const progress = paidCount / totalCount;
+
+  return (
+    <div className="glass debt-summary">
+      <RingProgress
+        value={progress}
+        size={64}
+        stroke={6}
+        gradientId="ring-debt"
+        from="var(--pink)"
+        to="var(--violet)"
+        label={`${Math.round(progress * 100)}%`}
+        sublabel="paid"
+      />
+      <div className="ds-stats">
+        <div className="ds-stat">
+          <span className="k">Remaining</span>
+          <span className="v">{formatMoney(remaining, currency)}</span>
+        </div>
+        <div className="ds-stat">
+          <span className="k">Due this month</span>
+          <span className="v due">{formatMoney(thisMonthDue, currency)}</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -293,29 +349,27 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
     }
   };
 
+  const previewT = parseFloat(total);
+  const previewN = parseInt(months, 10);
+  const showPreview =
+    mode === "auto" &&
+    Number.isFinite(previewT) && previewT > 0 &&
+    Number.isFinite(previewN) && previewN > 0 && previewN <= 600;
+  let previewText = null;
+  if (showPreview) {
+    const per = previewT / previewN;
+    const [yy, mm] = startDate.split("-").map(Number);
+    const end = new Date(yy, mm - 1 + (previewN - 1), 1);
+    previewText = `${formatMoney(per, currency)} / month · ${previewN} month${previewN > 1 ? "s" : ""} · ends ${MONTHS_SHORT[end.getMonth()]} ${end.getFullYear()}`;
+  }
+
   return (
     <div className="glass" style={{ padding: "14px", marginBottom: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ display: "flex", gap: 4, padding: "4px", background: "rgba(0,0,0,0.25)", borderRadius: 12, border: "1px solid var(--glass-edge)" }}>
-        <button
-          onClick={() => setMode("auto")}
-          style={{
-            flex: 1, fontSize: 12, padding: "8px 0", borderRadius: 9, border: 0,
-            background: mode === "auto" ? "var(--glass-strong)" : "transparent",
-            color: mode === "auto" ? "var(--fg)" : "var(--fg-3)",
-            transition: "background 150ms, color 150ms",
-          }}
-        >
+      <div className="seg">
+        <button className={mode === "auto" ? "on" : ""} onClick={() => setMode("auto")}>
           Auto-generate
         </button>
-        <button
-          onClick={() => setMode("manual")}
-          style={{
-            flex: 1, fontSize: 12, padding: "8px 0", borderRadius: 9, border: 0,
-            background: mode === "manual" ? "var(--glass-strong)" : "transparent",
-            color: mode === "manual" ? "var(--fg)" : "var(--fg-3)",
-            transition: "background 150ms, color 150ms",
-          }}
-        >
+        <button className={mode === "manual" ? "on" : ""} onClick={() => setMode("manual")}>
           Manual
         </button>
       </div>
@@ -355,7 +409,7 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
               value={months}
               onChange={(e) => setMonths(e.target.value)}
               className="glass-input"
-              style={{ width: 90 }}
+              style={{ width: 104 }}
             />
           </div>
           <div>
@@ -366,6 +420,7 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
               <DatePickerField value={startDate} onChange={setStartDate} />
             </div>
           </div>
+          {previewText && <div className="preview">{previewText}</div>}
         </>
       )}
 
@@ -520,11 +575,25 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
   const paidCount = group.installments.filter((i) => i.isPaid).length;
   const unpaidCount = totalCount - paidCount;
   const total = group.installments.reduce((s, i) => s + Number(i.amount || 0), 0);
+  const remaining = group.installments
+    .filter((i) => !i.isPaid)
+    .reduce((s, i) => s + Number(i.amount || 0), 0);
   const progress = totalCount > 0 ? paidCount / totalCount : 0;
 
   const thisMonthAmt = group.installments
     .filter((i) => isInCurrentMonth(i.dueDate))
     .reduce((s, i) => s + Number(i.amount || 0), 0);
+
+  const nextDue = group.installments
+    .filter((i) => !i.isPaid && i.dueDate)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+
+  const statusOf = (i) => {
+    if (i.isPaid) return { cls: "paid", txt: "PAID" };
+    if (isOverdue(i.dueDate)) return { cls: "over", txt: "OVERDUE" };
+    if (isInCurrentMonth(i.dueDate)) return { cls: "due", txt: "DUE" };
+    return null;
+  };
 
   const PREVIEW_COUNT = 3;
   const unpaidInstallments = group.installments.filter((i) => !i.isPaid);
@@ -555,8 +624,12 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
             <div style={{ width: `${progress * 100}%` }} />
           </div>
           <div className="meta">
-            <span>{paidCount} / {totalCount} months</span>
-            <span>{Math.round(progress * 100)}%</span>
+            <span>{paidCount}/{totalCount} · {formatMoney(remaining, currency)} left</span>
+            {nextDue ? (
+              <span className="due-chip">Next: {fmtDate(nextDue.dueDate)}</span>
+            ) : (
+              <span>{Math.round(progress * 100)}%</span>
+            )}
           </div>
         </>
       )}
@@ -577,25 +650,30 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
             </div>
           ) : (
             <>
-              {visibleItems.map((i) => (
-                <div key={i.id} className={`inst-row${i.isPaid ? " paid" : ""}`}>
-                  <button
-                    className={`check${i.isPaid ? " on" : ""}`}
-                    onClick={() => onToggle(i.id)}
-                    aria-label={i.isPaid ? "Mark unpaid" : "Mark paid"}
-                  >
-                    {i.isPaid && <Check size={11} style={{ color: "#06281d" }} strokeWidth={3} />}
-                  </button>
-                  <div className="info">
-                    <div className="il">{i.label}</div>
-                    <div className="id">{i.dueDate}</div>
+              {visibleItems.map((i) => {
+                const st = statusOf(i);
+                const isNext = nextDue && i.id === nextDue.id;
+                return (
+                  <div key={i.id} className={`inst-row${i.isPaid ? " paid" : ""}${isNext ? " next" : ""}`}>
+                    <button
+                      className={`check${i.isPaid ? " on" : ""}`}
+                      onClick={() => onToggle(i.id)}
+                      aria-label={i.isPaid ? "Mark unpaid" : "Mark paid"}
+                    >
+                      {i.isPaid && <Check size={11} style={{ color: "#06281d" }} strokeWidth={3} />}
+                    </button>
+                    <div className="info">
+                      <div className="il">{i.label}</div>
+                      <div className="id">{fmtDate(i.dueDate)}</div>
+                    </div>
+                    {st && <span className={`pill ${st.cls}`}>{st.txt}</span>}
+                    <span className="ia">{formatMoney(i.amount, currency)}</span>
+                    <button className="ix" onClick={() => onRemoveInstallment(i.id)} aria-label="Remove">
+                      <Trash2 size={12} strokeWidth={1.75} />
+                    </button>
                   </div>
-                  <span className="ia">{formatMoney(i.amount, currency)}</span>
-                  <button className="ix" onClick={() => onRemoveInstallment(i.id)} aria-label="Remove">
-                    <Trash2 size={12} strokeWidth={1.75} />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
 
               {hasMore && (
                 <button

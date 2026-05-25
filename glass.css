@@ -188,42 +188,79 @@ input { font: inherit; }
   display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px;
 }
 
-.fixed-card { padding: 14px; }
-.fixed-card .miniprog { padding: 0 4px 10px; }
-.fixed-card .miniprog .bar { height: 4px; border-radius: 9999px; background: rgba(255,255,255,0.08); overflow: hidden; }
-.fixed-card .miniprog .bar > div { height: 100%; background: linear-gradient(90deg, var(--amber), var(--emerald)); border-radius: 9999px; transition: width 500ms cubic-bezier(0.16,1,0.3,1); }
-.fixed-card .row { display: flex; align-items: center; gap: 12px; padding: 9px 4px; }
-.fixed-card .row + .row { border-top: 1px solid rgba(255,255,255,0.06); }
+/* ----- ring progress (donut) ------------------------------------- */
+.ring { position: relative; flex-shrink: 0; }
+.ring svg { display: block; }
+.ring .ring-fg { transition: stroke-dashoffset 600ms cubic-bezier(0.16,1,0.3,1); }
+.ring .ring-c {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.ring .ring-l { font: 700 15px var(--font); letter-spacing: -0.02em; color: var(--fg); font-variant-numeric: tabular-nums; }
+.ring .ring-s { font: 500 8px var(--font); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-3); margin-top: 2px; }
+
+.fixed-card { padding: 16px; }
+.fixed-card .fc-head {
+  display: flex; align-items: center; gap: 16px;
+  padding: 2px 2px 14px; margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.fixed-card .fc-stats { flex: 1; display: flex; gap: 20px; }
+.fixed-card .fc-stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fixed-card .fc-stat .k { font: 500 10px var(--font); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-3); }
+.fixed-card .fc-stat .v { font: 600 17px var(--font); color: var(--fg); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fixed-card .fc-stat .v.paid { color: var(--emerald); }
+.fixed-card .fc-done {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  margin: 2px 0 6px; padding: 9px;
+  border-radius: 12px;
+  background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.28);
+  font: 600 12px var(--font); color: var(--emerald);
+}
+.fixed-card .fx-row { display: flex; align-items: center; gap: 12px; padding: 11px 4px; }
+.fixed-card .fx-row + .fx-row { border-top: 1px solid rgba(255,255,255,0.06); }
 .fixed-card .check {
-  width: 22px; height: 22px; border-radius: 9999px;
+  width: 24px; height: 24px; border-radius: 9999px;
   border: 1.5px solid rgba(255,255,255,0.30);
   background: transparent;
   display: flex; align-items: center; justify-content: center;
-  transition: background 150ms ease, border-color 150ms ease;
+  transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
   flex-shrink: 0;
 }
 .fixed-card .check.on {
   background: var(--emerald); border-color: var(--emerald);
+  animation: checkpop 220ms cubic-bezier(0.34,1.56,0.64,1);
 }
-.fixed-card .name { flex: 1; font: 500 14px var(--font); color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fixed-card .amt  { font: 600 14px var(--font); font-variant-numeric: tabular-nums; color: var(--fg); white-space: nowrap; }
-.fixed-card .row.paid .name, .fixed-card .row.paid .amt { color: var(--fg-3); text-decoration: line-through; }
-.fixed-card .footer {
-  margin-top: 8px; padding: 12px 4px 4px;
-  border-top: 1px solid rgba(255,255,255,0.10);
-  display: flex; justify-content: space-between; align-items: center;
+.fixed-card .check:active { transform: scale(0.9); }
+.fixed-card .fx-row .name { flex: 1; font: 500 14px var(--font); color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fixed-card .fx-row .tag {
+  font: 600 9px var(--font); letter-spacing: 0.08em;
+  padding: 3px 7px; border-radius: 9999px; flex-shrink: 0;
+  background: rgba(52,211,153,0.15); color: var(--emerald); border: 1px solid rgba(52,211,153,0.30);
 }
-.fixed-card .footer .l { font: 500 10px var(--font); letter-spacing: 0.18em; text-transform: uppercase; color: var(--fg-3); }
-.fixed-card .footer .r { font: 600 14px var(--font); color: var(--emerald); font-variant-numeric: tabular-nums; }
-.fixed-card .footer .r .of { color: var(--fg-3); font-weight: 500; margin-left: 6px; }
+.fixed-card .fx-row .amt  { font: 600 14px var(--font); font-variant-numeric: tabular-nums; color: var(--fg); white-space: nowrap; }
+.fixed-card .fx-row.paid .name, .fixed-card .fx-row.paid .amt { color: var(--fg-3); }
+.fixed-card .fx-row .row-x { background: none; border: 0; color: var(--fg-4); padding: 4px; transition: color 150ms ease; }
+.fixed-card .fx-row .row-x:hover { color: var(--rose); }
 .fixed-card .show-more {
-  width: 100%; padding: 10px 4px; margin-top: 4px;
+  width: 100%; padding: 11px 4px; margin-top: 4px;
   border-top: 1px solid rgba(255,255,255,0.06);
   background: none; border-left: 0; border-right: 0; border-bottom: 0;
   font: 500 11px var(--font); color: var(--fg-3);
   text-align: center; transition: color 150ms ease;
 }
 .fixed-card .show-more:hover { color: var(--fg-2); }
+
+@keyframes checkpop { 0% { transform: scale(0.6); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+/* ----- debt section summary header ------------------------------- */
+.debt-summary { padding: 16px; display: flex; align-items: center; gap: 16px; }
+.debt-summary .ds-stats { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.debt-summary .ds-stat { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.debt-summary .ds-stat .k { font: 500 10px var(--font); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-3); }
+.debt-summary .ds-stat .v { font: 600 16px var(--font); color: var(--fg); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.debt-summary .ds-stat .v.due { color: var(--amber); }
 
 .debt-card { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .debt-card .top { display: flex; align-items: center; gap: 12px; }
@@ -235,7 +272,13 @@ input { font: inherit; }
 .debt-card .top .trash-btn:hover { color: var(--rose); }
 .debt-card .dprogress { height: 6px; border-radius: 9999px; background: rgba(255,255,255,0.08); overflow: hidden; }
 .debt-card .dprogress > div { height: 100%; background: linear-gradient(90deg, var(--pink), var(--violet)); border-radius: 9999px; transition: width 500ms cubic-bezier(0.16,1,0.3,1); }
-.debt-card .meta { display: flex; justify-content: space-between; font: 500 11px var(--mono); color: var(--fg-3); }
+.debt-card .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; font: 500 11px var(--mono); color: var(--fg-3); }
+.debt-card .meta > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.debt-card .meta .due-chip {
+  font: 500 10px var(--font); color: var(--violet); flex-shrink: 0;
+  padding: 2px 8px; border-radius: 9999px;
+  background: rgba(167,139,250,0.14); border: 1px solid rgba(167,139,250,0.28);
+}
 .debt-card .expand-btn {
   width: 100%; padding: 10px 0 0;
   background: none; border: 0; border-top: 1px solid rgba(255,255,255,0.06);
@@ -258,7 +301,18 @@ input { font: inherit; }
 .debt-card .inst-row .info .id { font: 500 11px var(--font); color: var(--fg-3); margin-top: 1px; }
 .debt-card .inst-row.paid .il,
 .debt-card .inst-row.paid .id,
-.debt-card .inst-row.paid .ia { color: var(--fg-4); text-decoration: line-through; }
+.debt-card .inst-row.paid .ia { color: var(--fg-4); }
+.debt-card .inst-row.next {
+  background: rgba(167,139,250,0.07); border-radius: 10px;
+  padding-left: 8px; padding-right: 8px;
+}
+.debt-card .inst-row .pill {
+  font: 600 8.5px var(--font); letter-spacing: 0.06em; flex-shrink: 0;
+  padding: 3px 7px; border-radius: 9999px;
+}
+.debt-card .inst-row .pill.paid { background: rgba(52,211,153,0.15); color: var(--emerald); border: 1px solid rgba(52,211,153,0.30); }
+.debt-card .inst-row .pill.due  { background: rgba(252,211,77,0.15); color: var(--amber);  border: 1px solid rgba(252,211,77,0.30); }
+.debt-card .inst-row .pill.over { background: rgba(251,113,133,0.15); color: var(--rose);  border: 1px solid rgba(251,113,133,0.32); }
 .debt-card .inst-row .ia { font: 600 13px var(--font); font-variant-numeric: tabular-nums; color: var(--fg); white-space: nowrap; }
 .debt-card .inst-row .ix { background: none; border: 0; color: var(--fg-5); padding: 3px; transition: color 150ms ease; }
 .debt-card .inst-row .ix:hover { color: var(--rose); }
@@ -412,6 +466,27 @@ input { font: inherit; }
   transition: background 150ms ease;
 }
 .glass-btn-secondary:hover { background: rgba(255,255,255,0.10); }
+
+/* ----- segmented control (auto / manual) ------------------------- */
+.seg {
+  display: flex; gap: 4px; padding: 4px;
+  background: rgba(0,0,0,0.25); border-radius: 12px; border: 1px solid var(--glass-edge);
+}
+.seg button {
+  flex: 1; padding: 8px 0; border-radius: 9px; border: 0;
+  background: transparent; color: var(--fg-3);
+  font: 500 12px var(--font);
+  transition: background 150ms ease, color 150ms ease;
+}
+.seg button.on { background: var(--glass-strong); color: var(--fg); }
+
+/* ----- live form preview (auto installment) ---------------------- */
+.preview {
+  padding: 10px 12px; border-radius: 12px;
+  background: rgba(167,139,250,0.10); border: 1px solid rgba(167,139,250,0.22);
+  font: 500 12px var(--font); color: var(--fg-2); text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ----- safe-area bottom padding helper --------------------------- */
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
