@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import WheelColumn from "./WheelColumn.jsx";
 import RingProgress from "./RingProgress.jsx";
+import Collapse from "./Collapse.jsx";
 import { uid } from "../utils/id.js";
 import { todayISO, isFixedPaidThisMonth, isInCurrentMonth, isOverdue, fmtDate, MONTHS_SHORT } from "../utils/date.js";
 import { formatMoney } from "../utils/money.js";
@@ -70,11 +71,37 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
 
   const PREVIEW_COUNT = 4;
   const unpaidItems = items.filter((e) => !isFixedPaidThisMonth(e));
-  const visibleItems = showAll ? items : unpaidItems.slice(0, PREVIEW_COUNT);
-  const unpaidCount = totalCount - paidCount;
-  const hiddenUnpaid = Math.max(0, unpaidCount - PREVIEW_COUNT);
-  const hasMore = totalCount > PREVIEW_COUNT || paidCount > 0;
-  const hiddenTotal = totalCount - visibleItems.length;
+  const previewItems = unpaidItems.slice(0, PREVIEW_COUNT);
+  const previewIds = new Set(previewItems.map((e) => e.id));
+  const restItems = items.filter((e) => !previewIds.has(e.id));
+  const hiddenTotal = restItems.length;
+  const hiddenUnpaid = restItems.filter((e) => !isFixedPaidThisMonth(e)).length;
+  const hasMore = restItems.length > 0;
+
+  const renderFixedRow = (e) => {
+    const isPaid = isFixedPaidThisMonth(e);
+    return (
+      <div key={e.id} className={`fx-row${isPaid ? " paid" : ""}`}>
+        <button
+          className={`check${isPaid ? " on" : ""}`}
+          onClick={() => onToggle(e.id)}
+          aria-label={isPaid ? "Mark unpaid" : "Mark paid"}
+        >
+          {isPaid && <Check size={12} style={{ color: "#06281d" }} strokeWidth={3} />}
+        </button>
+        <span className="name">{e.name}</span>
+        {isPaid && <span className="tag">PAID</span>}
+        <span className="amt">{formatMoney(e.amount, currency)}</span>
+        <button
+          className="row-x"
+          onClick={() => onRemove(e.id)}
+          aria-label="Remove"
+        >
+          <Trash2 size={14} strokeWidth={1.75} />
+        </button>
+      </div>
+    );
+  };
 
   const submit = () => {
     const a = parseFloat(amount);
@@ -102,7 +129,7 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
         </button>
       </div>
 
-      {adding && (
+      <Collapse open={adding}>
         <div className="glass" style={{ padding: "14px", marginBottom: 12 }}>
           <input
             type="text"
@@ -133,7 +160,7 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
             <button onClick={submit} className="glass-btn-primary">Save</button>
           </div>
         </div>
-      )}
+      </Collapse>
 
       {items.length === 0 ? (
         <div className="glass" style={{ padding: "28px 20px", textAlign: "center" }}>
@@ -171,30 +198,11 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
             </div>
           )}
 
-          {visibleItems.map((e) => {
-            const isPaid = isFixedPaidThisMonth(e);
-            return (
-              <div key={e.id} className={`fx-row${isPaid ? " paid" : ""}`}>
-                <button
-                  className={`check${isPaid ? " on" : ""}`}
-                  onClick={() => onToggle(e.id)}
-                  aria-label={isPaid ? "Mark unpaid" : "Mark paid"}
-                >
-                  {isPaid && <Check size={12} style={{ color: "#06281d" }} strokeWidth={3} />}
-                </button>
-                <span className="name">{e.name}</span>
-                {isPaid && <span className="tag">PAID</span>}
-                <span className="amt">{formatMoney(e.amount, currency)}</span>
-                <button
-                  className="row-x"
-                  onClick={() => onRemove(e.id)}
-                  aria-label="Remove"
-                >
-                  <Trash2 size={14} strokeWidth={1.75} />
-                </button>
-              </div>
-            );
-          })}
+          {previewItems.map(renderFixedRow)}
+
+          <Collapse open={showAll}>
+            {restItems.map(renderFixedRow)}
+          </Collapse>
 
           {hasMore && (
             <button
@@ -229,7 +237,7 @@ function DebtSection({ currency, groups, onAddGroup, onRemoveGroup, onToggle, on
         </button>
       </div>
 
-      {creating && (
+      <Collapse open={creating}>
         <NewDebtGroupForm
           currency={currency}
           onCancel={() => setCreating(false)}
@@ -238,7 +246,7 @@ function DebtSection({ currency, groups, onAddGroup, onRemoveGroup, onToggle, on
             setCreating(false);
           }}
         />
-      )}
+      </Collapse>
 
       {groups.length === 0 && !creating ? (
         <div className="glass" style={{ padding: "28px 20px", textAlign: "center" }}>
@@ -597,10 +605,37 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
 
   const PREVIEW_COUNT = 3;
   const unpaidInstallments = group.installments.filter((i) => !i.isPaid);
-  const visibleItems = showAll ? group.installments : unpaidInstallments.slice(0, PREVIEW_COUNT);
-  const hiddenUnpaid = Math.max(0, unpaidCount - PREVIEW_COUNT);
-  const hasMore = totalCount > PREVIEW_COUNT || paidCount > 0;
-  const hiddenTotal = totalCount - visibleItems.length;
+  const previewInst = unpaidInstallments.slice(0, PREVIEW_COUNT);
+  const previewInstIds = new Set(previewInst.map((i) => i.id));
+  const restInst = group.installments.filter((i) => !previewInstIds.has(i.id));
+  const hiddenTotal = restInst.length;
+  const hiddenUnpaid = restInst.filter((i) => !i.isPaid).length;
+  const hasMore = restInst.length > 0;
+
+  const renderInstRow = (i) => {
+    const st = statusOf(i);
+    const isNext = nextDue && i.id === nextDue.id;
+    return (
+      <div key={i.id} className={`inst-row${i.isPaid ? " paid" : ""}${isNext ? " next" : ""}`}>
+        <button
+          className={`check${i.isPaid ? " on" : ""}`}
+          onClick={() => onToggle(i.id)}
+          aria-label={i.isPaid ? "Mark unpaid" : "Mark paid"}
+        >
+          {i.isPaid && <Check size={11} style={{ color: "#06281d" }} strokeWidth={3} />}
+        </button>
+        <div className="info">
+          <div className="il">{i.label}</div>
+          <div className="id">{fmtDate(i.dueDate)}</div>
+        </div>
+        {st && <span className={`pill ${st.cls}`}>{st.txt}</span>}
+        <span className="ia">{formatMoney(i.amount, currency)}</span>
+        <button className="ix" onClick={() => onRemoveInstallment(i.id)} aria-label="Remove">
+          <Trash2 size={12} strokeWidth={1.75} />
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div className="glass debt-card">
@@ -642,7 +677,7 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
             : `Show installments${unpaidCount > 0 ? ` · ${unpaidCount} unpaid` : ""} ↓`}
       </button>
 
-      {open && (
+      <Collapse open={open}>
         <div className="installments">
           {group.installments.length === 0 ? (
             <div style={{ padding: "14px 0", color: "var(--fg-3)", font: "500 12px var(--font)" }}>
@@ -650,30 +685,11 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
             </div>
           ) : (
             <>
-              {visibleItems.map((i) => {
-                const st = statusOf(i);
-                const isNext = nextDue && i.id === nextDue.id;
-                return (
-                  <div key={i.id} className={`inst-row${i.isPaid ? " paid" : ""}${isNext ? " next" : ""}`}>
-                    <button
-                      className={`check${i.isPaid ? " on" : ""}`}
-                      onClick={() => onToggle(i.id)}
-                      aria-label={i.isPaid ? "Mark unpaid" : "Mark paid"}
-                    >
-                      {i.isPaid && <Check size={11} style={{ color: "#06281d" }} strokeWidth={3} />}
-                    </button>
-                    <div className="info">
-                      <div className="il">{i.label}</div>
-                      <div className="id">{fmtDate(i.dueDate)}</div>
-                    </div>
-                    {st && <span className={`pill ${st.cls}`}>{st.txt}</span>}
-                    <span className="ia">{formatMoney(i.amount, currency)}</span>
-                    <button className="ix" onClick={() => onRemoveInstallment(i.id)} aria-label="Remove">
-                      <Trash2 size={12} strokeWidth={1.75} />
-                    </button>
-                  </div>
-                );
-              })}
+              {previewInst.map(renderInstRow)}
+
+              <Collapse open={showAll}>
+                {restInst.map(renderInstRow)}
+              </Collapse>
 
               {hasMore && (
                 <button
@@ -694,7 +710,15 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
           )}
 
           <div className="inst-footer">
-            {addingInst ? (
+            <button className="add-inst" onClick={() => setAddingInst((v) => !v)}>
+              <Plus size={12} strokeWidth={1.75} /> Add installment
+            </button>
+            <span className="total-lbl">
+              Total <span>{formatMoney(total, currency)}</span>
+            </span>
+          </div>
+          <Collapse open={addingInst}>
+            <div style={{ paddingTop: 10 }}>
               <ManualInstallmentForm
                 currency={currency}
                 onCancel={() => setAddingInst(false)}
@@ -703,19 +727,10 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
                   setAddingInst(false);
                 }}
               />
-            ) : (
-              <>
-                <button className="add-inst" onClick={() => setAddingInst(true)}>
-                  <Plus size={12} strokeWidth={1.75} /> Add installment
-                </button>
-                <span className="total-lbl">
-                  Total <span>{formatMoney(total, currency)}</span>
-                </span>
-              </>
-            )}
-          </div>
+            </div>
+          </Collapse>
         </div>
-      )}
+      </Collapse>
     </div>
   );
 }

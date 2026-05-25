@@ -119,30 +119,32 @@ export default function Dashboard({
             {showAllMonth ? "Show today" : "This month →"}
           </button>
         </div>
-        {list.length === 0 ? (
-          <div className="empty">No expenses {showAllMonth ? "this month" : "today"} yet.</div>
-        ) : (
-          list.map((e) => {
-            const cat = e.category || (Number(e.amount) < 0 ? "refund" : "other");
-            const meta = CATEGORY_META[cat] || CATEGORY_META.other;
-            const isRefund = Number(e.amount) < 0;
-            return (
-              <div key={e.id} className={`it ${isRefund ? "in" : "out"}`}>
-                <div className="ic" style={{ background: meta.bg, color: meta.color }} aria-hidden="true">
-                  {meta.icon}
+        <div className="swap-fade" key={showAllMonth ? "month" : "today"}>
+          {list.length === 0 ? (
+            <div className="empty">No expenses {showAllMonth ? "this month" : "today"} yet.</div>
+          ) : (
+            list.map((e) => {
+              const cat = e.category || (Number(e.amount) < 0 ? "refund" : "other");
+              const meta = CATEGORY_META[cat] || CATEGORY_META.other;
+              const isRefund = Number(e.amount) < 0;
+              return (
+                <div key={e.id} className={`it ${isRefund ? "in" : "out"}`}>
+                  <div className="ic" style={{ background: meta.bg, color: meta.color }} aria-hidden="true">
+                    {meta.icon}
+                  </div>
+                  <div className="text">
+                    <div className="d">{e.description || "Untitled"}</div>
+                    <div className="t">{e.date}</div>
+                  </div>
+                  <span className="v">{fmtNum(Math.abs(Number(e.amount)))}</span>
+                  <button className="x" aria-label="Remove" onClick={() => onRemoveDaily(e.id)}>
+                    <Trash2 size={15} strokeWidth={1.75} />
+                  </button>
                 </div>
-                <div className="text">
-                  <div className="d">{e.description || "Untitled"}</div>
-                  <div className="t">{e.date}</div>
-                </div>
-                <span className="v">{fmtNum(Math.abs(Number(e.amount)))}</span>
-                <button className="x" aria-label="Remove" onClick={() => onRemoveDaily(e.id)}>
-                  <Trash2 size={15} strokeWidth={1.75} />
-                </button>
-              </div>
-            );
-          })
-        )}
+              );
+            })
+          )}
+        </div>
       </div>
     </div>
   );
