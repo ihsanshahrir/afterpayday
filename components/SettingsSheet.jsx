@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, ChevronDown } from "lucide-react";
 import WheelColumn from "./WheelColumn";
 
 const CURRENCIES = [
@@ -14,6 +14,7 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
   const [isOpen, setIsOpen] = useState(false);
   const [salary, setSalary] = useState(String(settings.salary || ""));
   const [currency, setCurrency] = useState(settings.currency || "RM");
+  const [currencyOpen, setCurrencyOpen] = useState(false);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setIsOpen(true));
@@ -75,14 +76,27 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
 
         <div className="field-block">
           <div className="label">Currency</div>
-          <div className="currency-wheel">
-            <WheelColumn
-              items={CURRENCIES.map((c) => `${c.flag}  ${c.code}`)}
-              selectedIndex={CURRENCIES.findIndex((c) => c.code === currency)}
-              onChange={(idx) => setCurrency(CURRENCIES[idx].code)}
-            />
-          </div>
-          <div className="currency-wheel-label">{curr.name}</div>
+          <button
+            type="button"
+            className={`currency-trigger${currencyOpen ? " open" : ""}`}
+            onClick={() => setCurrencyOpen((o) => !o)}
+            aria-expanded={currencyOpen}
+            aria-label={`Currency: ${curr.name}`}
+          >
+            <span className="cur-flag">{curr.flag}</span>
+            <span className="cur-code">{curr.code}</span>
+            <span className="cur-name">{curr.name}</span>
+            <ChevronDown className="cur-chev" size={18} strokeWidth={2} />
+          </button>
+          {currencyOpen && (
+            <div className="currency-dropdown">
+              <WheelColumn
+                items={CURRENCIES.map((c) => `${c.flag}  ${c.code}`)}
+                selectedIndex={CURRENCIES.findIndex((c) => c.code === currency)}
+                onChange={(idx) => setCurrency(CURRENCIES[idx].code)}
+              />
+            </div>
+          )}
         </div>
 
         <div className="sheet-actions" style={{ marginTop: 28 }}>

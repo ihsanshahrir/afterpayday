@@ -521,20 +521,38 @@ input { font: inherit; }
   font: inherit; flex: 1; min-width: 0; width: 100%;
   font-variant-numeric: tabular-nums;
 }
-.field-block .currency-wheel {
+.field-block .currency-trigger {
+  width: 100%;
+  background: var(--glass); border: 1px solid var(--glass-edge);
+  border-radius: 14px; padding: 14px 16px; color: var(--fg);
+  font: 500 16px var(--font); outline: none; cursor: pointer;
+  display: flex; align-items: center; gap: 10px;
+  -webkit-tap-highlight-color: transparent;
+}
+.field-block .currency-trigger .cur-flag { font-size: 18px; line-height: 1; }
+.field-block .currency-trigger .cur-code { font-weight: 600; }
+.field-block .currency-trigger .cur-name {
+  color: var(--fg-3); font-size: 13px; letter-spacing: 0.01em;
+}
+.field-block .currency-trigger .cur-chev {
+  margin-left: auto; color: var(--fg-3); flex-shrink: 0;
+  transition: transform 0.25s ease;
+}
+.field-block .currency-trigger.open .cur-chev { transform: rotate(180deg); }
+.field-block .currency-dropdown {
   height: 200px;
+  margin-top: 8px;
   background: rgba(255,255,255,0.04);
   border-radius: var(--r-md);
   border: 1px solid rgba(255,255,255,0.08);
   overflow: hidden;
   position: relative;
+  animation: currExpand 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top;
 }
-.field-block .currency-wheel-label {
-  text-align: center;
-  font-size: 12px;
-  color: rgba(255,255,255,0.45);
-  letter-spacing: 0.04em;
-  margin-top: 8px;
+@keyframes currExpand {
+  from { height: 0; margin-top: 0; opacity: 0; }
+  to   { height: 200px; margin-top: 8px; opacity: 1; }
 }
 
 /* ── empty-state card (history) ────────────────────────────────── */
