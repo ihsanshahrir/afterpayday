@@ -189,16 +189,16 @@ input { font: inherit; }
 }
 
 /* ----- ring progress (donut) ------------------------------------- */
-.ring { position: relative; flex-shrink: 0; }
-.ring svg { display: block; }
-.ring .ring-fg { transition: stroke-dashoffset 600ms cubic-bezier(0.16,1,0.3,1); }
-.ring .ring-c {
+.donut-ring { position: relative; flex-shrink: 0; }
+.donut-ring svg { display: block; }
+.donut-ring .ring-fg { transition: stroke-dashoffset 600ms cubic-bezier(0.16,1,0.3,1); }
+.donut-ring .ring-c {
   position: absolute; inset: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   pointer-events: none;
 }
-.ring .ring-l { font: 700 15px var(--font); letter-spacing: -0.02em; color: var(--fg); font-variant-numeric: tabular-nums; }
-.ring .ring-s { font: 500 8px var(--font); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-3); margin-top: 2px; }
+.donut-ring .ring-l { font: 700 15px var(--font); letter-spacing: -0.02em; color: var(--fg); font-variant-numeric: tabular-nums; }
+.donut-ring .ring-s { font: 500 8px var(--font); letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-3); margin-top: 2px; }
 
 .fixed-card { padding: 16px; }
 .fixed-card .fc-head {
