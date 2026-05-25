@@ -23,3 +23,18 @@ export const isFixedPaidThisMonth = (expense) =>
 
 export const monthLabel = () =>
   new Date().toLocaleDateString("en-MY", { month: "long", year: "numeric" });
+
+export const MONTHS_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+// Format a bare YYYY-MM-DD string without Date.parse to avoid UTC off-by-one.
+export const fmtDate = (iso) => {
+  if (!iso) return "";
+  const [yy, mm, dd] = iso.split("-").map(Number);
+  return `${dd} ${MONTHS_SHORT[mm - 1]} ${yy}`;
+};
+
+// Lexicographic compare is safe for ISO dates; due-today is not overdue.
+export const isOverdue = (iso) => Boolean(iso) && iso < todayISO();
