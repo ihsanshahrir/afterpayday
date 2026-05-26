@@ -278,37 +278,44 @@ function DebtSummary({ currency, groups }) {
   const totalCount = all.length;
   if (totalCount === 0) return null;
 
-  const paidCount = all.filter((i) => i.isPaid).length;
   const remaining = all
     .filter((i) => !i.isPaid)
     .reduce((s, i) => s + Number(i.amount || 0), 0);
-  const thisMonthDue = all
-    .filter((i) => !i.isPaid && isInCurrentMonth(i.dueDate))
+  const thisMonth = all.filter((i) => isInCurrentMonth(i.dueDate));
+  const thisMonthPaid = thisMonth
+    .filter((i) => i.isPaid)
     .reduce((s, i) => s + Number(i.amount || 0), 0);
-  const progress = paidCount / totalCount;
+  const thisMonthDue = thisMonth
+    .filter((i) => !i.isPaid)
+    .reduce((s, i) => s + Number(i.amount || 0), 0);
+  const thisMonthTotal = thisMonthPaid + thisMonthDue;
+  const monthProgress = thisMonthTotal > 0 ? thisMonthPaid / thisMonthTotal : 1;
+  const allCaughtUp = thisMonthDue === 0;
 
   return (
     <div className="glass debt-summary">
-      <RingProgress
-        value={progress}
-        size={64}
-        stroke={6}
-        gradientId="ring-debt"
-        from="var(--pink)"
-        to="var(--violet)"
-        label={`${Math.round(progress * 100)}%`}
-        sublabel="paid"
-      />
       <div className="ds-stats">
-        <div className="ds-stat">
+        <div className="ds-stat hero">
+          <span className="k">Due this month</span>
+          <span className={`v ${allCaughtUp ? "paid" : "due"}`}>
+            {allCaughtUp ? "All caught up" : formatMoney(thisMonthDue, currency)}
+          </span>
+        </div>
+        <div className="ds-stat muted">
           <span className="k">Remaining</span>
           <span className="v">{formatMoney(remaining, currency)}</span>
         </div>
-        <div className="ds-stat">
-          <span className="k">Due this month</span>
-          <span className="v due">{formatMoney(thisMonthDue, currency)}</span>
-        </div>
       </div>
+      <RingProgress
+        value={monthProgress}
+        size={64}
+        stroke={6}
+        gradientId="ring-debt"
+        from={allCaughtUp ? "var(--emerald)" : "var(--pink)"}
+        to={allCaughtUp ? "var(--emerald-deep)" : "var(--violet)"}
+        label={`${Math.round(monthProgress * 100)}%`}
+        sublabel={allCaughtUp ? "done" : "paid"}
+      />
     </div>
   );
 }
