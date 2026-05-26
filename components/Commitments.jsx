@@ -182,12 +182,12 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
             />
             <div className="fc-stats">
               <div className="fc-stat">
-                <span className="k">Paid</span>
-                <span className="v paid">{formatMoney(paidTotal, currency)}</span>
-              </div>
-              <div className="fc-stat">
                 <span className="k">Remaining</span>
                 <span className="v">{formatMoney(unpaidTotal, currency)}</span>
+              </div>
+              <div className="fc-stat hero">
+                <span className="k">Paid</span>
+                <span className="v paid">{formatMoney(paidTotal, currency)}</span>
               </div>
             </div>
           </div>
