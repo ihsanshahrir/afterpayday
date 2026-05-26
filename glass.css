@@ -373,7 +373,8 @@ input { font: inherit; }
 }
 .scrim.on { opacity: 1; pointer-events: auto; }
 .sheet {
-  position: fixed; left: 12px; right: 12px; bottom: 12px;
+  position: fixed; left: 50%; right: auto; bottom: 12px;
+  width: calc(100% - 24px); max-width: 448px;
   z-index: 60;
   border-radius: 32px;
   padding: 22px 22px 26px;
@@ -382,10 +383,10 @@ input { font: inherit; }
   backdrop-filter: blur(60px) saturate(180%);
   -webkit-backdrop-filter: blur(60px) saturate(180%);
   box-shadow: 0 30px 80px -20px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.12);
-  transform: translateY(120%);
+  transform: translate(-50%, 120%);
   transition: transform var(--dur-sheet) var(--ease-slide);
 }
-.sheet.on { transform: translateY(0); }
+.sheet.on { transform: translate(-50%, 0); }
 
 /* ----- inline collapse (slide + fade, both directions) ----------- */
 .collapse {
