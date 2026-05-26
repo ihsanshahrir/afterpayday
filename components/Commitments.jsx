@@ -133,7 +133,7 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
         <div className="glass" style={{ padding: "14px", marginBottom: 12 }}>
           <input
             type="text"
-            placeholder="Name (e.g. Rent)"
+            placeholder="Expenses (e.g., Rent, Zakat...)"
             aria-label="Expense name"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -168,8 +168,8 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
           <div style={{ color: "var(--fg-3)", font: "500 13px var(--font)" }}>No fixed expenses yet.</div>
         </div>
       ) : (
-        <div className="glass fixed-card">
-          <div className="fc-head">
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div className="glass fixed-summary">
             <RingProgress
               value={progress}
               size={64}
@@ -182,38 +182,40 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
             />
             <div className="fc-stats">
               <div className="fc-stat">
-                <span className="k">Paid</span>
-                <span className="v paid">{formatMoney(paidTotal, currency)}</span>
-              </div>
-              <div className="fc-stat">
                 <span className="k">Remaining</span>
                 <span className="v">{formatMoney(unpaidTotal, currency)}</span>
+              </div>
+              <div className="fc-stat hero">
+                <span className="k">Paid</span>
+                <span className="v paid">{formatMoney(paidTotal, currency)}</span>
               </div>
             </div>
           </div>
 
-          {allPaid && (
-            <div className="fc-done">
-              <Check size={14} strokeWidth={2.5} /> All paid this month
-            </div>
-          )}
+          <div className="glass fixed-card">
+            {allPaid && (
+              <div className="fc-done">
+                <Check size={14} strokeWidth={2.5} /> All paid this month
+              </div>
+            )}
 
-          {previewItems.map(renderFixedRow)}
+            {previewItems.map(renderFixedRow)}
 
-          <Collapse open={showAll}>
-            {restItems.map(renderFixedRow)}
-          </Collapse>
+            <Collapse open={showAll}>
+              {restItems.map(renderFixedRow)}
+            </Collapse>
 
-          {hasMore && (
-            <button
-              className="show-more"
-              onClick={() => setShowAll((v) => !v)}
-            >
-              {showAll
-                ? "Show less"
-                : `Show ${hiddenTotal} more${hiddenUnpaid > 0 ? ` (${hiddenUnpaid} unpaid)` : ""}`}
-            </button>
-          )}
+            {hasMore && (
+              <button
+                className="show-more"
+                onClick={() => setShowAll((v) => !v)}
+              >
+                {showAll
+                  ? "Show less"
+                  : `Show ${hiddenTotal} more${hiddenUnpaid > 0 ? ` (${hiddenUnpaid} unpaid)` : ""}`}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -278,35 +280,42 @@ function DebtSummary({ currency, groups }) {
   const totalCount = all.length;
   if (totalCount === 0) return null;
 
-  const paidCount = all.filter((i) => i.isPaid).length;
   const remaining = all
     .filter((i) => !i.isPaid)
     .reduce((s, i) => s + Number(i.amount || 0), 0);
-  const thisMonthDue = all
-    .filter((i) => !i.isPaid && isInCurrentMonth(i.dueDate))
+  const thisMonth = all.filter((i) => isInCurrentMonth(i.dueDate));
+  const thisMonthPaid = thisMonth
+    .filter((i) => i.isPaid)
     .reduce((s, i) => s + Number(i.amount || 0), 0);
-  const progress = paidCount / totalCount;
+  const thisMonthDue = thisMonth
+    .filter((i) => !i.isPaid)
+    .reduce((s, i) => s + Number(i.amount || 0), 0);
+  const thisMonthTotal = thisMonthPaid + thisMonthDue;
+  const monthProgress = thisMonthTotal > 0 ? thisMonthPaid / thisMonthTotal : 1;
+  const allCaughtUp = thisMonthDue === 0;
 
   return (
     <div className="glass debt-summary">
       <RingProgress
-        value={progress}
+        value={monthProgress}
         size={64}
         stroke={6}
         gradientId="ring-debt"
-        from="var(--pink)"
-        to="var(--violet)"
-        label={`${Math.round(progress * 100)}%`}
-        sublabel="paid"
+        from={allCaughtUp ? "var(--emerald)" : "var(--pink)"}
+        to={allCaughtUp ? "var(--emerald-deep)" : "var(--violet)"}
+        label={`${Math.round(monthProgress * 100)}%`}
+        sublabel={allCaughtUp ? "done" : "paid"}
       />
       <div className="ds-stats">
         <div className="ds-stat">
           <span className="k">Remaining</span>
           <span className="v">{formatMoney(remaining, currency)}</span>
         </div>
-        <div className="ds-stat">
+        <div className="ds-stat hero">
           <span className="k">Due this month</span>
-          <span className="v due">{formatMoney(thisMonthDue, currency)}</span>
+          <span className={`v ${allCaughtUp ? "paid" : "due"}`}>
+            {formatMoney(thisMonthDue, currency)}
+          </span>
         </div>
       </div>
     </div>
@@ -384,7 +393,7 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
 
       <input
         type="text"
-        placeholder="Group name (e.g. Macbook Air M4)"
+        placeholder="Installment (e.g., Car, House, Gadget...)"
         aria-label="Debt group name"
         value={name}
         onChange={(e) => setName(e.target.value)}
