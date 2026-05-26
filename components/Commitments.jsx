@@ -308,8 +308,8 @@ function DebtSummary({ currency, groups }) {
       </div>
       <RingProgress
         value={monthProgress}
-        size={64}
-        stroke={6}
+        size={56}
+        stroke={5}
         gradientId="ring-debt"
         from={allCaughtUp ? "var(--emerald)" : "var(--pink)"}
         to={allCaughtUp ? "var(--emerald-deep)" : "var(--violet)"}
