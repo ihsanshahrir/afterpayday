@@ -393,7 +393,7 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
 
       <input
         type="text"
-        placeholder="Group name (e.g. Macbook Air M4)"
+        placeholder="Installment (e.g., Car, House, Gadget...)"
         aria-label="Debt group name"
         value={name}
         onChange={(e) => setName(e.target.value)}
