@@ -312,7 +312,7 @@ function DebtSummary({ currency, groups }) {
         <div className="ds-stat hero">
           <span className="k">Due this month</span>
           <span className={`v ${allCaughtUp ? "paid" : "due"}`}>
-            {allCaughtUp ? "All caught up" : formatMoney(thisMonthDue, currency)}
+            {formatMoney(thisMonthDue, currency)}
           </span>
         </div>
       </div>
