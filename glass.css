@@ -209,8 +209,7 @@ input { font: inherit; }
 .fixed-card { padding: 16px; }
 .fixed-card .fc-head {
   display: flex; align-items: center; gap: 16px;
-  padding: 2px 2px 14px; margin-bottom: 4px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 14px;
 }
 .fixed-card .fc-stats { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; }
 .fixed-card .fc-stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
