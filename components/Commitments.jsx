@@ -133,7 +133,7 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
         <div className="glass" style={{ padding: "14px", marginBottom: 12 }}>
           <input
             type="text"
-            placeholder="Name (e.g. Rent)"
+            placeholder="Expenses (e.g., Rent, Zakat...)"
             aria-label="Expense name"
             value={name}
             onChange={(e) => setName(e.target.value)}
