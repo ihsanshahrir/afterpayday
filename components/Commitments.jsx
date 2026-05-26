@@ -294,28 +294,28 @@ function DebtSummary({ currency, groups }) {
 
   return (
     <div className="glass debt-summary">
-      <div className="ds-stats">
-        <div className="ds-stat hero">
-          <span className="k">Due this month</span>
-          <span className={`v ${allCaughtUp ? "paid" : "due"}`}>
-            {allCaughtUp ? "All caught up" : formatMoney(thisMonthDue, currency)}
-          </span>
-        </div>
-        <div className="ds-stat muted">
-          <span className="k">Remaining</span>
-          <span className="v">{formatMoney(remaining, currency)}</span>
-        </div>
-      </div>
       <RingProgress
         value={monthProgress}
-        size={56}
-        stroke={5}
+        size={64}
+        stroke={6}
         gradientId="ring-debt"
         from={allCaughtUp ? "var(--emerald)" : "var(--pink)"}
         to={allCaughtUp ? "var(--emerald-deep)" : "var(--violet)"}
         label={`${Math.round(monthProgress * 100)}%`}
         sublabel={allCaughtUp ? "done" : "paid"}
       />
+      <div className="ds-stats">
+        <div className="ds-stat">
+          <span className="k">Remaining</span>
+          <span className="v">{formatMoney(remaining, currency)}</span>
+        </div>
+        <div className="ds-stat hero">
+          <span className="k">Due this month</span>
+          <span className={`v ${allCaughtUp ? "paid" : "due"}`}>
+            {allCaughtUp ? "All caught up" : formatMoney(thisMonthDue, currency)}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
