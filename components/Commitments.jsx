@@ -168,8 +168,8 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
           <div style={{ color: "var(--fg-3)", font: "500 13px var(--font)" }}>No fixed expenses yet.</div>
         </div>
       ) : (
-        <div className="glass fixed-card">
-          <div className="fc-head">
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div className="glass fixed-summary">
             <RingProgress
               value={progress}
               size={64}
@@ -192,28 +192,30 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
             </div>
           </div>
 
-          {allPaid && (
-            <div className="fc-done">
-              <Check size={14} strokeWidth={2.5} /> All paid this month
-            </div>
-          )}
+          <div className="glass fixed-card">
+            {allPaid && (
+              <div className="fc-done">
+                <Check size={14} strokeWidth={2.5} /> All paid this month
+              </div>
+            )}
 
-          {previewItems.map(renderFixedRow)}
+            {previewItems.map(renderFixedRow)}
 
-          <Collapse open={showAll}>
-            {restItems.map(renderFixedRow)}
-          </Collapse>
+            <Collapse open={showAll}>
+              {restItems.map(renderFixedRow)}
+            </Collapse>
 
-          {hasMore && (
-            <button
-              className="show-more"
-              onClick={() => setShowAll((v) => !v)}
-            >
-              {showAll
-                ? "Show less"
-                : `Show ${hiddenTotal} more${hiddenUnpaid > 0 ? ` (${hiddenUnpaid} unpaid)` : ""}`}
-            </button>
-          )}
+            {hasMore && (
+              <button
+                className="show-more"
+                onClick={() => setShowAll((v) => !v)}
+              >
+                {showAll
+                  ? "Show less"
+                  : `Show ${hiddenTotal} more${hiddenUnpaid > 0 ? ` (${hiddenUnpaid} unpaid)` : ""}`}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
