@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { todayISO, isInCurrentMonth } from "../utils/date.js";
 import { fmtNum, fmtCompact } from "../utils/money.js";
+import SwapFade from "./SwapFade.jsx";
 
 const CATEGORY_META = {
   food:   { icon: "☕", bg: "rgba(252,211,77,0.18)",  color: "var(--amber)" },
@@ -119,7 +120,7 @@ export default function Dashboard({
             {showAllMonth ? "Show today" : "This month →"}
           </button>
         </div>
-        <div className="swap-fade" key={showAllMonth ? "month" : "today"}>
+        <SwapFade swapKey={showAllMonth ? "month" : "today"}>
           {list.length === 0 ? (
             <div className="empty">No expenses {showAllMonth ? "this month" : "today"} yet.</div>
           ) : (
@@ -144,7 +145,7 @@ export default function Dashboard({
               );
             })
           )}
-        </div>
+        </SwapFade>
       </div>
     </div>
   );

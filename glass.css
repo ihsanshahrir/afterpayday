@@ -390,28 +390,49 @@ input { font: inherit; }
 .sheet.on { transform: translate(-50%, 0); }
 
 /* ----- inline collapse (slide + fade, both directions) ----------- */
+/* Closing uses an easeIn curve so the tail finishes cleanly instead of
+   crawling the last few pixels; opening keeps the settled easeOut feel. */
 .collapse {
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
+  will-change: grid-template-rows, opacity;
+  transition: grid-template-rows var(--collapse-dur, var(--dur-collapse)) cubic-bezier(0.4, 0, 1, 1),
+              opacity var(--collapse-dur, var(--dur-collapse)) cubic-bezier(0.4, 0, 1, 1);
+}
+.collapse.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
   transition: grid-template-rows var(--collapse-dur, var(--dur-collapse)) var(--ease-slide),
               opacity var(--collapse-dur, var(--dur-collapse)) var(--ease-slide);
 }
-.collapse.open { grid-template-rows: 1fr; opacity: 1; }
 .collapse > .collapse-inner { overflow: hidden; min-height: 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .collapse { transition: opacity 1ms linear; }
+  .collapse, .collapse.open { transition: opacity 1ms linear; }
 }
 
 /* ----- list crossfade (Today <-> This month) -------------------- */
-.swap-fade { animation: swapFade var(--dur-swap) var(--ease-slide); }
-@keyframes swapFade {
+/* Both layers stack in the same grid cell so old & new overlap during
+   the swap — the cell sizes to max(old, new), avoiding a height snap. */
+.swap { display: grid; }
+.swap > .swap-in,
+.swap > .swap-out { grid-area: 1 / 1; }
+.swap-in  { animation: swapIn  var(--swap-dur, var(--dur-swap)) var(--ease-slide); }
+.swap-out {
+  animation: swapOut var(--swap-dur, var(--dur-swap)) var(--ease-slide) forwards;
+  pointer-events: none;
+}
+@keyframes swapIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes swapOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-6px); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .swap-fade { animation: none; }
+  .swap-in, .swap-out { animation: none; }
 }
 .sheet .grab { width: 38px; height: 4px; border-radius: 9999px; background: rgba(255,255,255,0.25); margin: -8px auto 16px; }
 .sheet .stitle { font: 600 16px var(--font); letter-spacing: -0.01em; margin-bottom: 16px; }
