@@ -7,6 +7,7 @@ import {
 import WheelColumn from "./WheelColumn.jsx";
 import RingProgress from "./RingProgress.jsx";
 import Collapse from "./Collapse.jsx";
+import StatPager from "./StatPager.jsx";
 import { uid } from "../utils/id.js";
 import { todayISO, isFixedPaidThisMonth, isInCurrentMonth, isOverdue, fmtDate, MONTHS_SHORT } from "../utils/date.js";
 import { formatMoney } from "../utils/money.js";
@@ -66,7 +67,6 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
   const paidCount = items.filter((e) => isFixedPaidThisMonth(e)).length;
   const totalCount = items.length;
   const progress = totalCount > 0 ? paidCount / totalCount : 0;
-  const paidTotal = Math.max(0, total - unpaidTotal);
   const allPaid = totalCount > 0 && paidCount === totalCount;
 
   const PREVIEW_COUNT = 4;
@@ -163,33 +163,46 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
       </Collapse>
 
       {items.length === 0 ? (
-        <div className="glass" style={{ padding: "28px 20px", textAlign: "center" }}>
-          <Receipt size={22} style={{ color: "var(--fg-4)", marginBottom: 8 }} />
-          <div style={{ color: "var(--fg-3)", font: "500 13px var(--font)" }}>No fixed expenses yet.</div>
-        </div>
+        !adding && (
+          <div className="glass" style={{ padding: "30px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+            <div style={{ color: "var(--fg-3)", font: "500 14px var(--font)", lineHeight: 1.5, maxWidth: 260 }}>
+              Add rent, subscriptions, or anything you pay every month.
+            </div>
+            <button onClick={() => setAdding(true)} className="btn-grad" aria-label="Add fixed expense">
+              <Plus size={18} strokeWidth={2.5} />
+            </button>
+          </div>
+        )
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div className="glass fixed-summary">
             <RingProgress
               value={progress}
-              size={64}
+              size={76}
               stroke={6}
               gradientId="ring-fixed"
-              from="var(--amber)"
-              to="var(--emerald)"
+              from={allPaid ? "var(--emerald)" : "var(--amber)"}
+              to={allPaid ? "var(--emerald-deep)" : "var(--emerald)"}
               label={`${paidCount}/${totalCount}`}
-              sublabel="paid"
+              sublabel={allPaid ? "done" : "paid"}
             />
-            <div className="fc-stats">
-              <div className="fc-stat">
-                <span className="k">Remaining</span>
-                <span className="v">{formatMoney(unpaidTotal, currency)}</span>
-              </div>
-              <div className="fc-stat hero">
-                <span className="k">Paid</span>
-                <span className="v paid">{formatMoney(paidTotal, currency)}</span>
-              </div>
-            </div>
+            <StatPager
+              ariaLabel="Fixed monthly summary"
+              pages={[
+                <div key="due" className="fc-stat hero solo">
+                  <span className="k">Due this month</span>
+                  <span className={`v ${allPaid ? "paid" : "due"}`}>
+                    {formatMoney(unpaidTotal, currency)}
+                  </span>
+                </div>,
+                <div key="paid" className="fc-stat hero solo">
+                  <span className="k">Total paid this month</span>
+                  <span className={`v ${total - unpaidTotal > 0 ? "paid" : ""}`}>
+                    {formatMoney(Math.max(0, total - unpaidTotal), currency)}
+                  </span>
+                </div>,
+              ]}
+            />
           </div>
 
           <div className="glass fixed-card">
@@ -250,11 +263,17 @@ function DebtSection({ currency, groups, onAddGroup, onRemoveGroup, onToggle, on
         />
       </Collapse>
 
-      {groups.length === 0 && !creating ? (
-        <div className="glass" style={{ padding: "28px 20px", textAlign: "center" }}>
-          <CreditCard size={22} style={{ color: "var(--fg-4)", marginBottom: 8 }} />
-          <div style={{ color: "var(--fg-3)", font: "500 13px var(--font)" }}>No debt groups yet.</div>
-        </div>
+      {groups.length === 0 ? (
+        !creating && (
+          <div className="glass" style={{ padding: "30px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+            <div style={{ color: "var(--fg-3)", font: "500 14px var(--font)", lineHeight: 1.5, maxWidth: 260 }}>
+              Track car loans, mortgages, or any installment paid over months.
+            </div>
+            <button onClick={() => setCreating(true)} className="btn-grad" aria-label="Add debt group">
+              <Plus size={18} strokeWidth={2.5} />
+            </button>
+          </div>
+        )
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {groups.length > 0 && <DebtSummary currency={currency} groups={groups} />}
@@ -298,7 +317,7 @@ function DebtSummary({ currency, groups }) {
     <div className="glass debt-summary">
       <RingProgress
         value={monthProgress}
-        size={64}
+        size={76}
         stroke={6}
         gradientId="ring-debt"
         from={allCaughtUp ? "var(--emerald)" : "var(--pink)"}
@@ -306,18 +325,29 @@ function DebtSummary({ currency, groups }) {
         label={`${Math.round(monthProgress * 100)}%`}
         sublabel={allCaughtUp ? "done" : "paid"}
       />
-      <div className="ds-stats">
-        <div className="ds-stat">
-          <span className="k">Remaining</span>
-          <span className="v">{formatMoney(remaining, currency)}</span>
-        </div>
-        <div className="ds-stat hero">
-          <span className="k">Due this month</span>
-          <span className={`v ${allCaughtUp ? "paid" : "due"}`}>
-            {formatMoney(thisMonthDue, currency)}
-          </span>
-        </div>
-      </div>
+      <StatPager
+        ariaLabel="Debt summary"
+        pages={[
+          <div key="due" className="ds-stat hero solo">
+            <span className="k">Due this month</span>
+            <span className={`v ${allCaughtUp ? "paid" : "due"}`}>
+              {formatMoney(thisMonthDue, currency)}
+            </span>
+          </div>,
+          <div key="breakdown" className="pager-row">
+            <div className="ds-stat">
+              <span className="k">Total paid this month</span>
+              <span className={`v ${thisMonthPaid > 0 ? "paid" : ""}`}>
+                {formatMoney(thisMonthPaid, currency)}
+              </span>
+            </div>
+            <div className="ds-stat">
+              <span className="k">Overall remaining</span>
+              <span className="v">{formatMoney(remaining, currency)}</span>
+            </div>
+          </div>,
+        ]}
+      />
     </div>
   );
 }

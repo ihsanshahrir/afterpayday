@@ -16,8 +16,9 @@ export default function SplashScreen({ onDone }) {
       position: 'fixed', inset: 0, zIndex: 9999,
       backgroundColor: '#0a0a0a',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
-      transform: exiting ? 'translateY(-100%)' : 'translateY(0)',
-      transition: exiting ? 'transform 0.38s cubic-bezier(0.4,0,0.6,1)' : 'none',
+      opacity: exiting ? 0 : 1,
+      transform: exiting ? 'scale(0.97)' : 'scale(1)',
+      transition: exiting ? 'opacity 0.4s ease, transform 0.4s ease' : 'none',
     }}>
       <div style={{
         width: 80, height: 80, borderRadius: 20,
