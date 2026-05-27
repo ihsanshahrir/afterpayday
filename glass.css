@@ -390,18 +390,26 @@ input { font: inherit; }
 .sheet.on { transform: translate(-50%, 0); }
 
 /* ----- inline collapse (slide + fade, both directions) ----------- */
+/* Closing uses an easeIn curve so the tail finishes cleanly instead of
+   crawling the last few pixels; opening keeps the settled easeOut feel. */
 .collapse {
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
+  will-change: grid-template-rows, opacity;
+  transition: grid-template-rows var(--collapse-dur, var(--dur-collapse)) cubic-bezier(0.4, 0, 1, 1),
+              opacity var(--collapse-dur, var(--dur-collapse)) cubic-bezier(0.4, 0, 1, 1);
+}
+.collapse.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
   transition: grid-template-rows var(--collapse-dur, var(--dur-collapse)) var(--ease-slide),
               opacity var(--collapse-dur, var(--dur-collapse)) var(--ease-slide);
 }
-.collapse.open { grid-template-rows: 1fr; opacity: 1; }
 .collapse > .collapse-inner { overflow: hidden; min-height: 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .collapse { transition: opacity 1ms linear; }
+  .collapse, .collapse.open { transition: opacity 1ms linear; }
 }
 
 /* ----- list crossfade (Today <-> This month) -------------------- */

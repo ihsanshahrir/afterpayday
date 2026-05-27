@@ -8,6 +8,9 @@ export default function Collapse({ open, duration, children }) {
   const [shown, setShown] = useState(open);
   const ref = useRef(null);
 
+  // Unmount only after the real grid-template-rows transition finishes, so
+  // the DOM removal lands one frame after the fully-closed paint instead of
+  // racing a setTimeout (which is what produced the end-of-collapse snap).
   useEffect(() => {
     if (open) {
       setRender(true);
@@ -15,8 +18,26 @@ export default function Collapse({ open, duration, children }) {
     }
     setShown(false);
     const ms = duration || 300;
-    const t = setTimeout(() => setRender(false), ms);
-    return () => clearTimeout(t);
+    const el = ref.current;
+    let timer = null;
+    const finish = () => {
+      if (timer) clearTimeout(timer);
+      if (el) el.removeEventListener("transitionend", onEnd);
+      setRender(false);
+    };
+    const onEnd = (e) => {
+      if (e.target !== el) return;
+      if (e.propertyName !== "grid-template-rows") return;
+      finish();
+    };
+    if (el) el.addEventListener("transitionend", onEnd);
+    // Safety net: if transitionend never fires (tab hidden, reduced motion,
+    // etc.) still unmount slightly after the nominal duration.
+    timer = setTimeout(finish, ms + 60);
+    return () => {
+      if (timer) clearTimeout(timer);
+      if (el) el.removeEventListener("transitionend", onEnd);
+    };
   }, [open, duration]);
 
   // Once the collapsed state is in the DOM, force a reflow to lock in the
