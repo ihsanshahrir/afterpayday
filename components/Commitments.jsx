@@ -9,7 +9,7 @@ import RingProgress from "./RingProgress.jsx";
 import Collapse from "./Collapse.jsx";
 import StatPager from "./StatPager.jsx";
 import { uid } from "../utils/id.js";
-import { todayISO, isFixedPaidThisMonth, isInCurrentMonth, isOverdue, fmtDate, MONTHS_SHORT } from "../utils/date.js";
+import { todayISO, isFixedPaidThisMonth, isInCurrentMonth, isOverdue, fmtDate, fmtMonthYear } from "../utils/date.js";
 import { formatMoney } from "../utils/money.js";
 
 const MONTHS = [
@@ -411,7 +411,7 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
     const per = previewT / previewN;
     const [yy, mm] = startDate.split("-").map(Number);
     const end = new Date(yy, mm - 1 + (previewN - 1), 1);
-    previewText = `${formatMoney(per, currency)} / month · ${previewN} month${previewN > 1 ? "s" : ""} · ends ${MONTHS_SHORT[end.getMonth()]} ${end.getFullYear()}`;
+    previewText = `${formatMoney(per, currency)} / month · ${previewN} month${previewN > 1 ? "s" : ""} · ends ${fmtMonthYear(end.getFullYear(), end.getMonth() + 1)}`;
   }
 
   return (
@@ -508,7 +508,7 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
 function DatePickerField({ value, onChange }) {
   const [showPicker, setShowPicker] = useState(false);
   const [yy, mm, dd] = value.split("-").map(Number);
-  const displayText = `${dd} ${MONTHS_SHORT[mm - 1]} ${yy}`;
+  const displayText = fmtDate(value);
 
   return (
     <div>
