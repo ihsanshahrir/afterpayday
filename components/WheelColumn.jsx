@@ -23,16 +23,33 @@ export default function WheelColumn({ items, selectedIndex, onChange }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Keep the visible position in sync when the parent moves the selection
+  // (e.g. day-clamp when switching to a shorter month). Skip while the user
+  // is actively dragging so we don't fight their gesture.
+  const lastSyncedIndex = useRef(selectedIndex);
+  useEffect(() => {
+    if (isDragging.current) return;
+    if (lastSyncedIndex.current === selectedIndex) return;
+    lastSyncedIndex.current = selectedIndex;
+    scrollToIndex(selectedIndex, true);
+  }, [selectedIndex, scrollToIndex]);
+
   const snapToNearest = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
     const idx = Math.round(el.scrollTop / ITEM_H);
     const clamped = Math.max(0, Math.min(items.length - 1, idx));
     scrollToIndex(clamped, true);
+    lastSyncedIndex.current = clamped;
     onChange(clamped);
   }, [items.length, onChange, scrollToIndex]);
 
   const handlePointerDown = (e) => {
+    // Capture so pointermove/up still fire when the cursor leaves the column.
+    // Without this a mouse drag released outside leaves dragging stuck on.
+    if (e.currentTarget.setPointerCapture) {
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+    }
     isDragging.current = true;
     didDrag.current = false;
     startY.current = e.clientY;
@@ -56,7 +73,10 @@ export default function WheelColumn({ items, selectedIndex, onChange }) {
     lastTime.current = now;
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e) => {
+    if (e && e.currentTarget && e.currentTarget.releasePointerCapture) {
+      try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
     if (!isDragging.current) return;
     isDragging.current = false;
     if (!didDrag.current) return;
@@ -73,6 +93,7 @@ export default function WheelColumn({ items, selectedIndex, onChange }) {
 
   const handleItemClick = (idx) => {
     if (didDrag.current) return;
+    lastSyncedIndex.current = idx;
     scrollToIndex(idx, true);
     onChange(idx);
   };

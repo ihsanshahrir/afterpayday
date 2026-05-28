@@ -27,6 +27,9 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
     setTimeout(callback, 400);
   };
 
+  // Auto-persist on close (X / scrim) to match the rest of the app, which
+  // never asks the user to confirm an edit. The Save button uses the same
+  // path so behavior is consistent.
   const save = () => {
     const s = parseFloat(salary);
     close(() => onSave({
@@ -39,7 +42,7 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
 
   return (
     <>
-      <div className={`scrim${isOpen ? " on" : ""}`} onClick={() => close(onClose)} />
+      <div className={`scrim${isOpen ? " on" : ""}`} onClick={save} />
       <div
         className={`sheet${isOpen ? " on" : ""}`}
         role="dialog"
@@ -53,7 +56,7 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
             <div className="eyebrow-sm">Settings</div>
             <h3>Wallet</h3>
           </div>
-          <button className="close-btn" onClick={() => close(onClose)} aria-label="Close">
+          <button className="close-btn" onClick={save} aria-label="Close">
             <X size={15} strokeWidth={1.75} />
           </button>
         </div>
