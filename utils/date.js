@@ -1,3 +1,5 @@
+import { LOCALE } from "./locale.js";
+
 export const todayISO = () => {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -22,7 +24,7 @@ export const isFixedPaidThisMonth = (expense) =>
   expense.paidMonth === currentMonthKey();
 
 export const monthLabel = () =>
-  new Date().toLocaleDateString("en-MY", { month: "long", year: "numeric" });
+  new Date().toLocaleDateString(LOCALE, { month: "long", year: "numeric" });
 
 export const MONTHS_SHORT = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",

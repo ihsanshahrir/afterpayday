@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { todayISO, isInCurrentMonth } from "../utils/date.js";
 import { fmtNum, fmtCompact } from "../utils/money.js";
+import { LOCALE } from "../utils/locale.js";
 import SwapFade from "./SwapFade.jsx";
 
 const CATEGORY_META = {
@@ -38,7 +39,7 @@ export default function Dashboard({
   const hasIncome = salary > 0;
 
   const [intRaw, centPart] = Math.abs(safeToSpend).toFixed(2).split(".");
-  const intPart = Number(intRaw).toLocaleString("en-MY");
+  const intPart = Number(intRaw).toLocaleString(LOCALE);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 8 }}>
