@@ -65,18 +65,31 @@ export default function StatPager({ pages, ariaLabel = "Stats" }) {
 
   if (!pages || pages.length === 0) return null;
 
+  // Pointer capture keeps the drag alive when the cursor leaves the viewport.
+  // touchAction: pan-y lets native vertical scrolling pass through; horizontal
+  // swipes are committed by the direction lock inside handleMove.
+  const onPointerDown = (e) => {
+    if (e.currentTarget.setPointerCapture) {
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+    handleStart(e.clientX, e.clientY);
+  };
+  const onPointerUp = (e) => {
+    if (e && e.currentTarget && e.currentTarget.releasePointerCapture) {
+      try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+    handleEnd();
+  };
+
   return (
     <div className="stat-pager" role="group" aria-label={ariaLabel}>
       <div
         className="stat-pager-viewport"
-        onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
-        onTouchMove={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY)}
-        onTouchEnd={handleEnd}
-        onTouchCancel={handleEnd}
-        onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
-        onMouseMove={(e) => dragging && handleMove(e.clientX, e.clientY)}
-        onMouseUp={handleEnd}
-        onMouseLeave={handleEnd}
+        style={{ touchAction: "pan-y" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={(e) => handleMove(e.clientX, e.clientY)}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
       >
         <div
           className="stat-pager-track"

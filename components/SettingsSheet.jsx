@@ -27,11 +27,19 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
     setTimeout(callback, 400);
   };
 
+  // Auto-persist on close (X / scrim) to match the rest of the app, which
+  // never asks the user to confirm an edit. The Save button uses the same
+  // path so behavior is consistent. An empty / invalid salary input is
+  // treated as "no change" — accidentally clearing the field and tapping
+  // outside should not zero out a previously-saved salary. To reset, the
+  // user explicitly types 0.
   const save = () => {
-    const s = parseFloat(salary);
+    const trimmed = salary.trim();
+    const parsed = trimmed === "" ? NaN : parseFloat(trimmed);
+    const nextSalary = Number.isFinite(parsed) && parsed >= 0 ? parsed : settings.salary;
     close(() => onSave({
-      salary: Number.isFinite(s) && s >= 0 ? s : 0,
-      currency: currency.trim() || "RM",
+      salary: nextSalary,
+      currency: currency.trim() || settings.currency || "RM",
     }));
   };
 
@@ -39,7 +47,7 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
 
   return (
     <>
-      <div className={`scrim${isOpen ? " on" : ""}`} onClick={() => close(onClose)} />
+      <div className={`scrim${isOpen ? " on" : ""}`} onClick={save} />
       <div
         className={`sheet${isOpen ? " on" : ""}`}
         role="dialog"
@@ -53,7 +61,7 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
             <div className="eyebrow-sm">Settings</div>
             <h3>Wallet</h3>
           </div>
-          <button className="close-btn" onClick={() => close(onClose)} aria-label="Close">
+          <button className="close-btn" onClick={save} aria-label="Close">
             <X size={15} strokeWidth={1.75} />
           </button>
         </div>

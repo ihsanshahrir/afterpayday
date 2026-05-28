@@ -40,6 +40,7 @@ export default function OnboardingSlides({ onDone }) {
   const [current, setCurrent] = useState(0);
   const [visible, setVisible] = useState(false);
   const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
   const total = SLIDES.length;
   const isLast = current === total - 1;
 
@@ -62,13 +63,21 @@ export default function OnboardingSlides({ onDone }) {
     if (current > 0) setCurrent((c) => c - 1);
   };
 
-  const onTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
+  const onTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
   const onTouchEnd = (e) => {
     if (touchStartX.current === null) return;
-    const delta = touchStartX.current - e.changedTouches[0].clientX;
+    const dx = touchStartX.current - e.changedTouches[0].clientX;
+    const dy = touchStartY.current - e.changedTouches[0].clientY;
     touchStartX.current = null;
-    if (delta > 50) handleNext();
-    else if (delta < -50) handlePrev();
+    touchStartY.current = null;
+    // Ignore vertical-dominant gestures so a scroll attempt with slight
+    // horizontal drift doesn't advance the slide.
+    if (Math.abs(dx) <= Math.abs(dy)) return;
+    if (dx > 50) handleNext();
+    else if (dx < -50) handlePrev();
   };
 
   const { Icon, title, body, color } = SLIDES[current];

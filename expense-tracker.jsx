@@ -42,7 +42,7 @@ function AddSheet({ open, currency, onClose, onSave }) {
   }, [open]);
 
   const a = parseFloat(amount);
-  const valid = isFinite(a) && a > 0;
+  const valid = Number.isFinite(a) && a > 0;
 
   const submit = () => {
     if (!valid) return;
@@ -120,7 +120,7 @@ export default function App() {
 
   useEffect(() => {
     const ok = saveState(state);
-    if (!ok) setStorageError(true);
+    setStorageError(!ok);
   }, [state]);
 
   const stateRef = useRef(state);
@@ -134,12 +134,19 @@ export default function App() {
 
       const m = s.currentMonth;
       const salary = s.settings.salary || 0;
-      const fixedTotal = s.fixedExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+      // Snapshot the month as actually spent — only count fixed expenses and
+      // installments the user marked paid. Unpaid amounts roll forward as
+      // overdue rather than retroactively reducing the closed month's balance.
+      const fixedTotal = s.fixedExpenses
+        .filter((e) => e.paidMonth === m)
+        .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
       let installments = 0;
       s.debtGroups.forEach(g => {
         g.installments.forEach(i => {
-          if (i.dueDate && i.dueDate.startsWith(m)) installments += Number(i.amount || 0);
+          if (i.dueDate && i.dueDate.startsWith(m) && i.isPaid) {
+            installments += Number(i.amount || 0);
+          }
         });
       });
 
@@ -165,12 +172,30 @@ export default function App() {
       }));
     };
 
+    let timer = null;
+    const scheduleNext = () => {
+      if (timer) clearTimeout(timer);
+      const now = new Date();
+      // First second of the next month, in local time. Capped so very long
+      // tabs don't hit the setTimeout 32-bit overflow.
+      const next = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 1);
+      const delay = Math.min(Math.max(next - now, 1000), 2_147_000_000);
+      timer = setTimeout(() => {
+        checkRollover();
+        scheduleNext();
+      }, delay);
+    };
+
     checkRollover();
+    scheduleNext();
     const onVisibility = () => {
       if (document.visibilityState === "visible") checkRollover();
     };
     document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   useEffect(() => {
@@ -218,6 +243,23 @@ export default function App() {
     return total;
   }, [state.debtGroups]);
 
+  const fixedPaidThisMonth = useMemo(
+    () => state.fixedExpenses
+      .filter((e) => isFixedPaidThisMonth(e))
+      .reduce((s, e) => s + Number(e.amount || 0), 0),
+    [state.fixedExpenses]
+  );
+
+  const installmentsPaidThisMonth = useMemo(() => {
+    let total = 0;
+    state.debtGroups.forEach((g) => {
+      g.installments.forEach((i) => {
+        if (isInCurrentMonth(i.dueDate) && i.isPaid) total += Number(i.amount || 0);
+      });
+    });
+    return total;
+  }, [state.debtGroups]);
+
   const dailyThisMonth = useMemo(
     () =>
       state.dailyExpenses
@@ -228,6 +270,11 @@ export default function App() {
 
   const safeToSpend =
     Number(state.settings.salary || 0) - fixedGrandTotal - installmentsTotalThisMonth - dailyThisMonth;
+
+  // "Spent" reflects money that has actually left the account: paid fixed bills,
+  // paid installments, and daily expenses. Unpaid commitments still affect the
+  // forward-looking `safeToSpend` but should not inflate the progress bar.
+  const spentThisMonth = fixedPaidThisMonth + installmentsPaidThisMonth + dailyThisMonth;
 
   // ---------- mutations ----------
   const updateSettings = (patch) =>
@@ -372,7 +419,7 @@ export default function App() {
               fixedGrandTotal={fixedGrandTotal}
               installmentsTotalThisMonth={installmentsTotalThisMonth}
               installmentsUnpaidThisMonth={installmentsUnpaidThisMonth}
-              dailyThisMonth={dailyThisMonth}
+              spentThisMonth={spentThisMonth}
               safeToSpend={safeToSpend}
               dailyExpenses={state.dailyExpenses}
               onRemoveDaily={removeDailyExpense}

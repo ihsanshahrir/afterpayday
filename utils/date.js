@@ -1,3 +1,5 @@
+import { LOCALE } from "./locale.js";
+
 export const todayISO = () => {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -22,19 +24,26 @@ export const isFixedPaidThisMonth = (expense) =>
   expense.paidMonth === currentMonthKey();
 
 export const monthLabel = () =>
-  new Date().toLocaleDateString("en-MY", { month: "long", year: "numeric" });
+  new Date().toLocaleDateString(LOCALE, { month: "long", year: "numeric" });
 
-export const MONTHS_SHORT = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
+// Parts → local-time Date. Avoids Date.parse's UTC-midnight behavior on
+// bare YYYY-MM-DD strings, which previously shifted dates by a day in
+// western timezones.
+const localDate = (yy, mm, dd) => new Date(yy, mm - 1, dd ?? 1);
 
-// Format a bare YYYY-MM-DD string without Date.parse to avoid UTC off-by-one.
+// "12 Jan 2026" in en-US, "12. Jan. 2026" in de-DE, etc.
 export const fmtDate = (iso) => {
   if (!iso) return "";
   const [yy, mm, dd] = iso.split("-").map(Number);
-  return `${dd} ${MONTHS_SHORT[mm - 1]} ${yy}`;
+  return localDate(yy, mm, dd).toLocaleDateString(LOCALE, {
+    day: "numeric", month: "short", year: "numeric",
+  });
 };
+
+// "Jan 2026" for the {month, year} pair — used by previews / pickers that
+// don't have a day component.
+export const fmtMonthYear = (year, month1) =>
+  localDate(year, month1).toLocaleDateString(LOCALE, { month: "short", year: "numeric" });
 
 // Lexicographic compare is safe for ISO dates; due-today is not overdue.
 export const isOverdue = (iso) => Boolean(iso) && iso < todayISO();

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { todayISO, isInCurrentMonth } from "../utils/date.js";
 import { fmtNum, fmtCompact } from "../utils/money.js";
+import { LOCALE } from "../utils/locale.js";
 import SwapFade from "./SwapFade.jsx";
 
 const CATEGORY_META = {
@@ -19,6 +20,7 @@ export default function Dashboard({
   fixedGrandTotal,
   installmentsTotalThisMonth,
   installmentsUnpaidThisMonth,
+  spentThisMonth,
   safeToSpend,
   dailyExpenses,
   onRemoveDaily,
@@ -32,12 +34,12 @@ export default function Dashboard({
 
   const isNegative = safeToSpend < 0;
   const total = salary;
-  const spent = salary - safeToSpend;
-  const pctUsed = total > 0 ? Math.min(100, (spent / total) * 100) : 0;
+  const spent = spentThisMonth;
+  const pctUsed = total > 0 ? Math.max(0, Math.min(100, (spent / total) * 100)) : 0;
   const hasIncome = salary > 0;
 
   const [intRaw, centPart] = Math.abs(safeToSpend).toFixed(2).split(".");
-  const intPart = Number(intRaw).toLocaleString("en-MY");
+  const intPart = Number(intRaw).toLocaleString(LOCALE);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 8 }}>
