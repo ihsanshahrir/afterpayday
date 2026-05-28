@@ -42,7 +42,7 @@ function AddSheet({ open, currency, onClose, onSave }) {
   }, [open]);
 
   const a = parseFloat(amount);
-  const valid = isFinite(a) && a > 0;
+  const valid = Number.isFinite(a) && a > 0;
 
   const submit = () => {
     if (!valid) return;

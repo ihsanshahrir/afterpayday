@@ -1,4 +1,6 @@
 import { Component } from "react";
+import { STORAGE_KEY } from "../state/storage.js";
+import { ONBOARDING_KEY } from "./OnboardingSlides.jsx";
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -20,8 +22,13 @@ export default class ErrorBoundary extends Component {
 
   handleClearData = () => {
     if (window.confirm("This will delete all your data and restart the app. Are you sure?")) {
-      localStorage.clear();
-      sessionStorage.clear();
+      // Only clear keys this app owns. Plain localStorage.clear() would also
+      // remove unrelated data on the same origin.
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(ONBOARDING_KEY);
+        sessionStorage.removeItem("afterpayday-splash");
+      } catch (_) { /* swallow — best-effort cleanup */ }
       window.location.reload();
     }
   };

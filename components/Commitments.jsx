@@ -17,6 +17,8 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+// `month` is 1-based (Jan = 1). `new Date(year, month, 0)` is day 0 of the
+// next 0-indexed month, which is the last day of the 1-based month passed in.
 const daysInMonth = (month, year) => new Date(year, month, 0).getDate();
 
 export default function Commitments({
@@ -357,19 +359,21 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
   const [name, setName] = useState("");
   const [total, setTotal] = useState("");
   const [months, setMonths] = useState("");
+  const [error, setError] = useState(null);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   });
 
   const submit = () => {
+    setError(null);
     if (!name.trim()) return;
     if (mode === "auto") {
       const t = parseFloat(total);
       const n = parseInt(months, 10);
       if (!Number.isFinite(t) || t <= 0 || !Number.isFinite(n) || n <= 0) return;
       if (n > 600) {
-        alert("Maximum allowed duration is 600 months (50 years).");
+        setError("Maximum allowed duration is 600 months (50 years).");
         return;
       }
       const per = +(t / n).toFixed(2);
@@ -468,6 +472,22 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
             </div>
           </div>
           {previewText && <div className="preview">{previewText}</div>}
+          {error && (
+            <div
+              role="alert"
+              style={{
+                padding: "10px 12px",
+                borderRadius: 12,
+                background: "rgba(244,63,94,0.10)",
+                border: "1px solid rgba(244,63,94,0.30)",
+                font: "500 12px var(--font)",
+                color: "var(--rose)",
+                textAlign: "center",
+              }}
+            >
+              {error}
+            </div>
+          )}
         </>
       )}
 

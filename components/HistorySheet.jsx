@@ -44,7 +44,7 @@ export default function HistorySheet({ history, currency, onClose }) {
               const totalSpent = h.fixedTotal + h.installments + h.dailySpent;
               const progress = h.salary > 0 ? Math.min(1, totalSpent / h.salary) : 0;
               const isPositive = h.balance >= 0;
-              const [yy, mm] = h.month.split("-");
+              const [yy, mm] = h.month.split("-").map(Number);
               const monthStr = new Date(yy, mm - 1, 1).toLocaleDateString("en-MY", {
                 month: "long", year: "numeric",
               });
