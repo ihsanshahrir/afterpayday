@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "description": "AfterPayday — a mobile-first, offline-capable PWA that tracks monthly salary, fixed expenses, installment debt, and daily spending against a single safe-to-spend figure.",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
