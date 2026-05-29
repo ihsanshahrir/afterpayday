@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { formatMoney } from "../utils/money.js";
 import { LOCALE } from "../utils/locale.js";
+import { SHEET_ANIM_MS } from "../utils/ui.js";
 
 export default function HistorySheet({ history, currency, onClose }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,7 +13,7 @@ export default function HistorySheet({ history, currency, onClose }) {
 
   const close = () => {
     setIsOpen(false);
-    setTimeout(onClose, 400);
+    setTimeout(onClose, SHEET_ANIM_MS);
   };
 
   return (

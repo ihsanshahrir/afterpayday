@@ -20,6 +20,7 @@ export default function Dashboard({
   fixedGrandTotal,
   installmentsTotalThisMonth,
   installmentsUnpaidThisMonth,
+  installmentsOverdueUnpaid = 0,
   spentThisMonth,
   safeToSpend,
   dailyExpenses,
@@ -110,6 +111,11 @@ export default function Dashboard({
               : installmentsUnpaidThisMonth > 0
                 ? <><b>{currency} {fmtNum(installmentsUnpaidThisMonth)}</b> unpaid</>
                 : "None this month"}
+            {installmentsOverdueUnpaid > 0 && (
+              <span className="overdue-note">
+                {currency} {fmtNum(installmentsOverdueUnpaid)} overdue
+              </span>
+            )}
           </div>
         </div>
       </div>

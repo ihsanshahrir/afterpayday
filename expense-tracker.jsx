@@ -8,7 +8,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { uid } from "./utils/id.js";
-import { todayISO, currentMonthKey, isInCurrentMonth, isFixedPaidThisMonth, monthLabel } from "./utils/date.js";
+import { todayISO, currentMonthKey, isInCurrentMonth, isBeforeCurrentMonth, isFixedPaidThisMonth, monthLabel } from "./utils/date.js";
 import { loadState, saveState } from "./state/storage.js";
 import SplashScreen from "./components/SplashScreen.jsx";
 import OnboardingSlides, { ONBOARDING_KEY } from "./components/OnboardingSlides.jsx";
@@ -285,6 +285,19 @@ export default function App() {
     return total;
   }, [state.debtGroups]);
 
+  // Unpaid installments whose due date is in a month before this one. They're
+  // still owed, so they must reduce safe-to-spend and be surfaced — otherwise
+  // overdue debt silently vanishes from every headline figure.
+  const installmentsOverdueUnpaid = useMemo(() => {
+    let total = 0;
+    state.debtGroups.forEach((g) => {
+      g.installments.forEach((i) => {
+        if (isBeforeCurrentMonth(i.dueDate) && !i.isPaid) total += Number(i.amount || 0);
+      });
+    });
+    return total;
+  }, [state.debtGroups]);
+
   const fixedPaidThisMonth = useMemo(
     () => state.fixedExpenses
       .filter((e) => isFixedPaidThisMonth(e))
@@ -311,7 +324,7 @@ export default function App() {
   );
 
   const safeToSpend =
-    Number(state.settings.salary || 0) - fixedGrandTotal - installmentsTotalThisMonth - dailyThisMonth;
+    Number(state.settings.salary || 0) - fixedGrandTotal - installmentsTotalThisMonth - installmentsOverdueUnpaid - dailyThisMonth;
 
   // "Spent" reflects money that has actually left the account: paid fixed bills,
   // paid installments, and daily expenses. Unpaid commitments still affect the
@@ -335,6 +348,14 @@ export default function App() {
         e.id !== id
           ? e
           : { ...e, paidMonth: isFixedPaidThisMonth(e) ? null : currentMonthKey() }
+      ),
+    }));
+
+  const editFixedExpense = (id, name, amount) =>
+    setState((s) => ({
+      ...s,
+      fixedExpenses: s.fixedExpenses.map((e) =>
+        e.id === id ? { ...e, name, amount: Number(amount) } : e
       ),
     }));
 
@@ -385,6 +406,23 @@ export default function App() {
       ...s,
       debtGroups: s.debtGroups.map((g) =>
         g.id !== groupId ? g : { ...g, installments: [...g.installments, installment] }
+      ),
+    }));
+
+  const editInstallment = (groupId, instId, patch) =>
+    setState((s) => ({
+      ...s,
+      debtGroups: s.debtGroups.map((g) =>
+        g.id !== groupId
+          ? g
+          : {
+              ...g,
+              installments: g.installments.map((i) =>
+                i.id === instId
+                  ? { ...i, ...patch, amount: Number(patch.amount ?? i.amount) }
+                  : i
+              ),
+            }
       ),
     }));
 
@@ -469,6 +507,7 @@ export default function App() {
               fixedGrandTotal={fixedGrandTotal}
               installmentsTotalThisMonth={installmentsTotalThisMonth}
               installmentsUnpaidThisMonth={installmentsUnpaidThisMonth}
+              installmentsOverdueUnpaid={installmentsOverdueUnpaid}
               spentThisMonth={spentThisMonth}
               safeToSpend={safeToSpend}
               dailyExpenses={state.dailyExpenses}
@@ -482,12 +521,14 @@ export default function App() {
               fixedGrandTotal={fixedGrandTotal}
               debtGroups={state.debtGroups}
               onAddFixed={addFixedExpense}
+              onEditFixed={editFixedExpense}
               onRemoveFixed={removeFixedExpense}
               onToggleFixed={toggleFixedPaid}
               onAddDebtGroup={addDebtGroup}
               onRemoveDebtGroup={removeDebtGroup}
               onToggleInstallment={toggleInstallmentPaid}
               onAddInstallment={addInstallmentToGroup}
+              onEditInstallment={editInstallment}
               onRemoveInstallment={removeInstallment}
             />
           )}
