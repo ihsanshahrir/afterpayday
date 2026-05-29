@@ -376,7 +376,10 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
         setError("Maximum allowed duration is 600 months (50 years).");
         return;
       }
-      const per = +(t / n).toFixed(2);
+      // Floor each installment to 2 dp; last installment absorbs the remainder
+      // so the sum always equals the original total exactly.
+      const perBase = Math.floor((t / n) * 100) / 100;
+      const lastAmount = +(t - perBase * (n - 1)).toFixed(2);
       const [yy, mm, dd] = startDate.split("-").map(Number);
       const installments = Array.from({ length: n }, (_, i) => {
         const monthDate = new Date(yy, mm - 1 + i, 1);
@@ -389,7 +392,7 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
         return {
           id: uid(),
           label: `Month ${i + 1}`,
-          amount: per,
+          amount: i === n - 1 ? lastAmount : perBase,
           dueDate: `${yyyy}-${mmStr}-${ddStr}`,
           isPaid: false,
         };

@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, ChevronDown } from "lucide-react";
 import WheelColumn from "./WheelColumn";
 import Collapse from "./Collapse";
+import { importState } from "../state/storage.js";
 
 const CURRENCIES = [
   { code: "RM",  flag: "🇲🇾", name: "Malaysian Ringgit" },
@@ -11,11 +12,13 @@ const CURRENCIES = [
   { code: "EUR", flag: "🇪🇺", name: "Euro" },
 ];
 
-export default function SettingsSheet({ settings, onClose, onSave }) {
+export default function SettingsSheet({ settings, onClose, onSave, onExport, onImport }) {
   const [isOpen, setIsOpen] = useState(false);
   const [salary, setSalary] = useState(String(settings.salary || ""));
   const [currency, setCurrency] = useState(settings.currency || "RM");
   const [currencyOpen, setCurrencyOpen] = useState(false);
+  const [importError, setImportError] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setIsOpen(true));
@@ -41,6 +44,30 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
       salary: nextSalary,
       currency: currency.trim() || settings.currency || "RM",
     }));
+  };
+
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImportError(null);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const parsed = JSON.parse(evt.target.result);
+        const normalized = importState(parsed);
+        if (!normalized) {
+          setImportError("Invalid backup file — not a recognisable AfterPayday backup.");
+          return;
+        }
+        if (window.confirm("Replace all current data with this backup? This cannot be undone.")) {
+          close(() => onImport(normalized));
+        }
+      } catch {
+        setImportError("Could not read file. Make sure it is a valid JSON backup.");
+      }
+    };
+    reader.readAsText(file);
   };
 
   const curr = CURRENCIES.find((c) => c.code === currency) || CURRENCIES[0];
@@ -108,7 +135,52 @@ export default function SettingsSheet({ settings, onClose, onSave }) {
           </Collapse>
         </div>
 
-        <div className="sheet-actions" style={{ marginTop: 28 }}>
+        <div className="field-block" style={{ marginTop: 24 }}>
+          <div className="label">Backup</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              className="glass-btn-secondary"
+              style={{ flex: 1 }}
+              onClick={onExport}
+            >
+              Export
+            </button>
+            <button
+              type="button"
+              className="glass-btn-secondary"
+              style={{ flex: 1 }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Import
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              style={{ display: "none" }}
+              onChange={handleImportFile}
+            />
+          </div>
+          {importError && (
+            <div
+              role="alert"
+              style={{
+                marginTop: 8,
+                padding: "10px 12px",
+                borderRadius: 12,
+                background: "rgba(244,63,94,0.10)",
+                border: "1px solid rgba(244,63,94,0.30)",
+                font: "500 12px var(--font)",
+                color: "var(--rose)",
+              }}
+            >
+              {importError}
+            </div>
+          )}
+        </div>
+
+        <div className="sheet-actions" style={{ marginTop: 20 }}>
           <button className="btn-primary" onClick={save}>Save</button>
         </div>
       </div>

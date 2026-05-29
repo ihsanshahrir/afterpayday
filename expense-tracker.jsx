@@ -10,7 +10,7 @@ import {
 import { uid } from "./utils/id.js";
 import { todayISO, currentMonthKey, isInCurrentMonth, isFixedPaidThisMonth, monthLabel } from "./utils/date.js";
 import { formatMoney } from "./utils/money.js";
-import { loadState, saveState } from "./state/storage.js";
+import { loadState, saveState, importState } from "./state/storage.js";
 import SplashScreen from "./components/SplashScreen.jsx";
 import OnboardingSlides, { ONBOARDING_KEY } from "./components/OnboardingSlides.jsx";
 import Dashboard from "./components/Dashboard.jsx";
@@ -119,9 +119,30 @@ export default function App() {
   const [showAddSheet, setShowAddSheet] = useState(false);
 
   useEffect(() => {
+    navigator.storage?.persist?.();
+  }, []);
+
+  useEffect(() => {
     const ok = saveState(state);
     setStorageError(!ok);
   }, [state]);
+
+  const handleExport = useCallback(() => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `afterpayday-backup-${todayISO()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [state]);
+
+  const handleImport = useCallback((importedState) => {
+    setState(importedState);
+    setShowSettings(false);
+  }, []);
 
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; });
@@ -507,6 +528,8 @@ export default function App() {
               updateSettings(patch);
               setShowSettings(false);
             }}
+            onExport={handleExport}
+            onImport={handleImport}
           />
         )}
 

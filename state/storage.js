@@ -21,21 +21,41 @@ const migrate = (data) => {
   return data;
 };
 
+// Shared normaliser: migrates, merges with defaults, and coerces every
+// array field so a truncated write or tampered JSON can't crash the app.
+const normalizeState = (raw) => {
+  const migrated = migrate({ ...raw });
+  const s = {
+    ...defaultState,
+    ...migrated,
+    settings: { ...defaultState.settings, ...(migrated?.settings || {}) },
+  };
+  if (!Array.isArray(s.fixedExpenses)) s.fixedExpenses = [];
+  if (!Array.isArray(s.debtGroups)) s.debtGroups = [];
+  if (!Array.isArray(s.dailyExpenses)) s.dailyExpenses = [];
+  if (!Array.isArray(s.history)) s.history = [];
+  if (!s.currentMonth) s.currentMonth = currentMonthKey();
+  return s;
+};
+
 export const loadState = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : defaultState;
-    const migrated = migrate({ ...parsed });
-    const s = {
-      ...defaultState,
-      ...migrated,
-      settings: { ...defaultState.settings, ...(migrated?.settings || {}) },
-    };
-    if (!s.history) s.history = [];
-    if (!s.currentMonth) s.currentMonth = currentMonthKey();
-    return s;
+    return normalizeState(parsed);
   } catch {
     return { ...defaultState, currentMonth: currentMonthKey(), history: [] };
+  }
+};
+
+// Validates and normalises a parsed backup object.
+// Returns null if the input is not a recognisable AfterPayday backup.
+export const importState = (parsed) => {
+  try {
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return normalizeState(parsed);
+  } catch {
+    return null;
   }
 };
 
