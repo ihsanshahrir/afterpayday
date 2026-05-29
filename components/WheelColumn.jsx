@@ -1,8 +1,9 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useId } from "react";
 
-export default function WheelColumn({ items, selectedIndex, onChange }) {
+export default function WheelColumn({ items, selectedIndex, onChange, ariaLabel = "Picker" }) {
   const ITEM_H = 40;
   const VISIBLE = 5;
+  const baseId = useId();
   const containerRef = useRef(null);
   const isDragging = useRef(false);
   const didDrag = useRef(false);
@@ -98,6 +99,30 @@ export default function WheelColumn({ items, selectedIndex, onChange }) {
     onChange(idx);
   };
 
+  const selectIndex = useCallback((idx) => {
+    const clamped = Math.max(0, Math.min(items.length - 1, idx));
+    lastSyncedIndex.current = clamped;
+    scrollToIndex(clamped, true);
+    onChange(clamped);
+  }, [items.length, onChange, scrollToIndex]);
+
+  const handleKeyDown = (e) => {
+    let next;
+    switch (e.key) {
+      case "ArrowDown":
+      case "ArrowRight": next = selectedIndex + 1; break;
+      case "ArrowUp":
+      case "ArrowLeft":  next = selectedIndex - 1; break;
+      case "Home":       next = 0; break;
+      case "End":        next = items.length - 1; break;
+      case "PageDown":   next = selectedIndex + 3; break;
+      case "PageUp":     next = selectedIndex - 3; break;
+      default: return;
+    }
+    e.preventDefault();
+    selectIndex(next);
+  };
+
   const padItems = Math.floor(VISIBLE / 2);
 
   return (
@@ -122,7 +147,12 @@ export default function WheelColumn({ items, selectedIndex, onChange }) {
       <div
         ref={containerRef}
         className="h-full overflow-hidden"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch', outline: 'none' }}
+        role="listbox"
+        aria-label={ariaLabel}
+        aria-activedescendant={`${baseId}-${selectedIndex}`}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -135,6 +165,9 @@ export default function WheelColumn({ items, selectedIndex, onChange }) {
           return (
             <div
               key={idx}
+              id={`${baseId}-${idx}`}
+              role="option"
+              aria-selected={isSelected}
               onClick={() => handleItemClick(idx)}
               className="flex items-center justify-center cursor-pointer select-none transition-all duration-150"
               style={{

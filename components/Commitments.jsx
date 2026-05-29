@@ -10,7 +10,7 @@ import Collapse from "./Collapse.jsx";
 import StatPager from "./StatPager.jsx";
 import { uid } from "../utils/id.js";
 import { todayISO, isFixedPaidThisMonth, isInCurrentMonth, isOverdue, fmtDate, fmtMonthYear } from "../utils/date.js";
-import { formatMoney } from "../utils/money.js";
+import { formatMoney, splitEvenly } from "../utils/money.js";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -376,7 +376,9 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
         setError("Maximum allowed duration is 600 months (50 years).");
         return;
       }
-      const per = +(t / n).toFixed(2);
+      // Split the total so the installments always sum back to it exactly —
+      // the last one absorbs any rounding remainder.
+      const amounts = splitEvenly(t, n);
       const [yy, mm, dd] = startDate.split("-").map(Number);
       const installments = Array.from({ length: n }, (_, i) => {
         const monthDate = new Date(yy, mm - 1 + i, 1);
@@ -389,7 +391,7 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
         return {
           id: uid(),
           label: `Month ${i + 1}`,
-          amount: per,
+          amount: amounts[i],
           dueDate: `${yyyy}-${mmStr}-${ddStr}`,
           isPaid: false,
         };
@@ -611,14 +613,14 @@ function DatePickerModal({ mode, initialDay, initialMonth, initialYear, onConfir
           }} />
           {isDateMode && (
             <div style={{ position: "relative", height: 200 }}>
-              <WheelColumn key={`day-${maxDay}`} items={dayItems} selectedIndex={selectedDay - 1} onChange={(i) => setSelectedDay(i + 1)} />
+              <WheelColumn ariaLabel="Day" key={`day-${maxDay}`} items={dayItems} selectedIndex={selectedDay - 1} onChange={(i) => setSelectedDay(i + 1)} />
             </div>
           )}
           <div style={{ position: "relative", height: 200 }}>
-            <WheelColumn items={MONTHS} selectedIndex={selectedMonth - 1} onChange={(i) => setSelectedMonth(i + 1)} />
+            <WheelColumn ariaLabel="Month" items={MONTHS} selectedIndex={selectedMonth - 1} onChange={(i) => setSelectedMonth(i + 1)} />
           </div>
           <div style={{ position: "relative", height: 200 }}>
-            <WheelColumn items={years.map(String)} selectedIndex={years.indexOf(selectedYear)} onChange={(i) => setSelectedYear(years[i])} />
+            <WheelColumn ariaLabel="Year" items={years.map(String)} selectedIndex={years.indexOf(selectedYear)} onChange={(i) => setSelectedYear(years[i])} />
           </div>
         </div>
 
@@ -667,7 +669,6 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
   const previewInst = unpaidInstallments.slice(0, PREVIEW_COUNT);
   const previewInstIds = new Set(previewInst.map((i) => i.id));
   const restInst = group.installments.filter((i) => !previewInstIds.has(i.id));
-  const hiddenTotal = restInst.length;
   const hiddenUnpaid = restInst.filter((i) => !i.isPaid).length;
   const hasMore = restInst.length > 0;
 

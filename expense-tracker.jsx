@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { uid } from "./utils/id.js";
 import { todayISO, currentMonthKey, isInCurrentMonth, isFixedPaidThisMonth, monthLabel } from "./utils/date.js";
-import { formatMoney } from "./utils/money.js";
 import { loadState, saveState } from "./state/storage.js";
 import SplashScreen from "./components/SplashScreen.jsx";
 import OnboardingSlides, { ONBOARDING_KEY } from "./components/OnboardingSlides.jsx";
@@ -19,10 +18,11 @@ import SettingsSheet from "./components/SettingsSheet.jsx";
 import HistorySheet from "./components/HistorySheet.jsx";
 
 const CHIPS = [
-  { id: "food",  label: "☕ Food" },
-  { id: "fuel",  label: "⛽ Fuel" },
-  { id: "shop",  label: "🛍 Shop" },
-  { id: "other", label: "• Other" },
+  { id: "food",   label: "☕ Food" },
+  { id: "fuel",   label: "⛽ Fuel" },
+  { id: "shop",   label: "🛍 Shop" },
+  { id: "other",  label: "• Other" },
+  { id: "refund", label: "↺ Refund" },
 ];
 
 function AddSheet({ open, currency, onClose, onSave }) {
@@ -46,7 +46,9 @@ function AddSheet({ open, currency, onClose, onSave }) {
 
   const submit = () => {
     if (!valid) return;
-    onSave(a, desc.trim(), cat);
+    // A refund is money coming back in, stored as a negative amount so it
+    // lifts safe-to-spend and shows as an inbound row in the list.
+    onSave(cat === "refund" ? -a : a, desc.trim(), cat);
   };
 
   return (
@@ -94,7 +96,7 @@ function AddSheet({ open, currency, onClose, onSave }) {
         <div className="sheet-actions">
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
           <button className="btn-primary" disabled={!valid} onClick={submit}>
-            Save expense
+            {cat === "refund" ? "Save refund" : "Save expense"}
           </button>
         </div>
       </div>
@@ -117,14 +119,54 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(ONBOARDING_KEY));
   const [storageError, setStorageError] = useState(false);
   const [showAddSheet, setShowAddSheet] = useState(false);
+  const [undo, setUndo] = useState(null); // { snapshot, label } | null
+  const undoTimerRef = useRef(null);
+
+  useEffect(() => {
+    navigator.storage?.persist?.();
+  }, []);
 
   useEffect(() => {
     const ok = saveState(state);
     setStorageError(!ok);
   }, [state]);
 
+  const handleExport = useCallback(() => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `afterpayday-backup-${todayISO()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [state]);
+
+  const handleImport = useCallback((importedState) => {
+    setState(importedState);
+    setShowSettings(false);
+  }, []);
+
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; });
+
+  useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); }, []);
+
+  // Snapshot the whole state before a destructive change so a single tap can
+  // restore it. Whole-state undo keeps the restore trivially correct (no
+  // per-entity re-insertion) and covers every delete uniformly.
+  const requestUndo = useCallback((label) => {
+    setUndo({ snapshot: stateRef.current, label });
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = setTimeout(() => setUndo(null), 5000);
+  }, []);
+
+  const performUndo = () => {
+    if (undo) setState(undo.snapshot);
+    setUndo(null);
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+  };
 
   useEffect(() => {
     const checkRollover = () => {
@@ -296,8 +338,10 @@ export default function App() {
       ),
     }));
 
-  const removeFixedExpense = (id) =>
+  const removeFixedExpense = (id) => {
+    requestUndo("Fixed expense deleted");
     setState((s) => ({ ...s, fixedExpenses: s.fixedExpenses.filter((e) => e.id !== id) }));
+  };
 
   const addDailyExpense = (amount, description, category = "other") =>
     setState((s) => ({
@@ -308,14 +352,18 @@ export default function App() {
       ],
     }));
 
-  const removeDailyExpense = (id) =>
+  const removeDailyExpense = (id) => {
+    requestUndo("Expense deleted");
     setState((s) => ({ ...s, dailyExpenses: s.dailyExpenses.filter((e) => e.id !== id) }));
+  };
 
   const addDebtGroup = (group) =>
     setState((s) => ({ ...s, debtGroups: [...s.debtGroups, group] }));
 
-  const removeDebtGroup = (id) =>
+  const removeDebtGroup = (id) => {
+    requestUndo("Debt group deleted");
     setState((s) => ({ ...s, debtGroups: s.debtGroups.filter((g) => g.id !== id) }));
+  };
 
   const toggleInstallmentPaid = (groupId, instId) =>
     setState((s) => ({
@@ -340,7 +388,8 @@ export default function App() {
       ),
     }));
 
-  const removeInstallment = (groupId, instId) =>
+  const removeInstallment = (groupId, instId) => {
+    requestUndo("Installment deleted");
     setState((s) => ({
       ...s,
       debtGroups: s.debtGroups.map((g) =>
@@ -349,6 +398,7 @@ export default function App() {
           : { ...g, installments: g.installments.filter((i) => i.id !== instId) }
       ),
     }));
+  };
 
   const handleOnboardingDone = useCallback(() => {
     setShowOnboarding(false);
@@ -502,11 +552,12 @@ export default function App() {
         {showSettings && (
           <SettingsSheet
             settings={state.settings}
-            onClose={() => setShowSettings(false)}
             onSave={(patch) => {
               updateSettings(patch);
               setShowSettings(false);
             }}
+            onExport={handleExport}
+            onImport={handleImport}
           />
         )}
 
@@ -516,6 +567,23 @@ export default function App() {
             currency={currency}
             onClose={() => setShowHistory(false)}
           />
+        )}
+
+        {undo && (
+          <div
+            className="fixed left-0 right-0 z-40 mx-auto max-w-md px-4"
+            style={{ bottom: "calc(96px + env(safe-area-inset-bottom))" }}
+          >
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-neutral-700/60 bg-neutral-900/95 px-4 py-3 text-sm text-neutral-200 shadow-lg backdrop-blur">
+              <span>{undo.label}</span>
+              <button
+                onClick={performUndo}
+                className="shrink-0 font-semibold text-emerald-400 hover:text-emerald-300"
+              >
+                Undo
+              </button>
+            </div>
+          </div>
         )}
 
         {storageError && (
