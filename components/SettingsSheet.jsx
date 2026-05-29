@@ -12,7 +12,7 @@ const CURRENCIES = [
   { code: "EUR", flag: "🇪🇺", name: "Euro" },
 ];
 
-export default function SettingsSheet({ settings, onClose, onSave, onExport, onImport }) {
+export default function SettingsSheet({ settings, onSave, onExport, onImport }) {
   const [isOpen, setIsOpen] = useState(false);
   const [salary, setSalary] = useState(String(settings.salary || ""));
   const [currency, setCurrency] = useState(settings.currency || "RM");
@@ -127,6 +127,7 @@ export default function SettingsSheet({ settings, onClose, onSave, onExport, onI
           <Collapse open={currencyOpen}>
             <div className="currency-dropdown">
               <WheelColumn
+                ariaLabel="Currency"
                 items={CURRENCIES.map((c) => `${c.flag}  ${c.code}`)}
                 selectedIndex={CURRENCIES.findIndex((c) => c.code === currency)}
                 onChange={(idx) => setCurrency(CURRENCIES[idx].code)}

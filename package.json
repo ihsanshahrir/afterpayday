@@ -2,12 +2,14 @@
   "name": "expense-tracker",
   "version": "1.0.0",
   "type": "module",
-  "description": "",
-  "main": "index.js",
+  "description": "AfterPayday — a mobile-first, offline-capable PWA that tracks monthly salary, fixed expenses, installment debt, and daily spending against a single safe-to-spend figure.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +26,13 @@
     "vite": "^8.0.10"
   },
   "devDependencies": {
-    "vite-plugin-pwa": "^1.2.0"
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.18",
+    "globals": "^15.14.0",
+    "jsdom": "^25.0.1",
+    "vite-plugin-pwa": "^1.2.0",
+    "vitest": "^3.0.4"
   }
 }

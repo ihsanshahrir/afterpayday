@@ -56,19 +56,42 @@ No backend, no database, no authentication.
   currentMonth: "2026-05",
   settings: { salary: Number, currency: String },
   fixedExpenses: [{ id, name, amount, paidMonth }],
-  debtGroups: [{ id, name, installments: [{ id, amount, dueDate, isPaid }] }],
-  dailyExpenses: [{ id, amount, description, date }],
+  debtGroups: [{ id, name, installments: [{ id, label, amount, dueDate, isPaid }] }],
+  dailyExpenses: [{ id, amount, description, date, category }], // amount < 0 = refund
   history: [{ id, month, salary, fixedTotal, installments, dailySpent, balance }],
 }
 ```
+
+`currentMonth` and `history` aren't in the on-disk default — `loadState` /
+`importState` inject them (and coerce every array field) so an old or partial
+save is upgraded to this shape on load. `category` is one of
+`food | fuel | shop | other | refund`; a refund is stored as a negative
+`amount` so it lifts safe-to-spend and renders as an inbound row.
 
 Single root state object held in `App`. All mutations flow through small named helpers (`addFixedExpense`, `toggleInstallmentPaid`, etc.) — no reducer, no context. The app is small enough that prop drilling stays readable.
 
 ### Persistence layer (`state/storage.js`)
 
-- `loadState()`: reads localStorage, runs forward migration, returns merged state with defaults.
+- `loadState()`: reads localStorage, runs forward migration, returns merged state built from **fresh** defaults (no shared array/object references, so loaded state is safe to mutate).
+- `importState(parsed)`: validates a parsed backup object (rejects non-objects / arrays), then runs it through the same normaliser. Returns `null` for unrecognised input.
 - `saveState(state)`: writes JSON, returns `true` on success / `false` on `QuotaExceededError`. The boolean lets the UI surface a banner when storage is full.
+- **Shape guards**: every array field (`fixedExpenses`, `debtGroups`, `dailyExpenses`, `history`) is coerced to `[]` if it isn't an array, so a truncated write or hand-edited backup can't crash the app at render.
 - Schema versioning via `_version` field. New versions add a migration step in `migrate()`; old saves are upgraded on load.
+
+### Durability & backup
+
+localStorage on iOS Safari can be evicted after ~7 days of non-use for
+non–home-screen PWAs. Two mitigations:
+
+- On mount the app calls `navigator.storage.persist()` to request durable storage where supported.
+- **Settings → Backup** offers one-tap **Export** (downloads a timestamped JSON of the full state) and **Import** (reads a backup, validates via `importState`, confirms, then replaces state). This is the user's recovery path on any device.
+
+### Undo
+
+Deletes (daily expense, fixed expense, installment, debt group) snapshot the
+**entire** previous state and surface a 5-second "Undo" toast. Whole-state undo
+keeps restoration trivially correct — no per-entity re-insertion or ordering
+logic — and covers every delete uniformly.
 
 ### Time handling (`utils/date.js`)
 
@@ -111,27 +134,37 @@ Class component (required: hooks can't catch render errors). Lives outside `Stri
 ```
 .
 ├── main.jsx                      Entry; mounts ErrorBoundary → App
-├── expense-tracker.jsx           App root (~370 lines): state, routing, layout
+├── expense-tracker.jsx           App root: state, routing, layout, AddSheet, undo
 ├── index.html                    Viewport, theme color, favicon links
-├── index.css                     Tailwind imports + global resets
+├── index.css                     Tailwind import + global resets only
+├── glass.css                     Main stylesheet: design tokens + component styles
 │
 ├── components/
-│   ├── Dashboard.jsx             Safe-to-spend hero, quick-add, daily list
-│   ├── Commitments.jsx           Fixed expenses + installment debt groups
-│   ├── SettingsSheet.jsx         Salary & currency picker
+│   ├── Dashboard.jsx             Safe-to-spend hero, daily/refund list
+│   ├── Commitments.jsx           Fixed expenses + installment debt groups + pickers
+│   ├── SettingsSheet.jsx         Salary, currency, and backup export/import
 │   ├── HistorySheet.jsx          Past-month snapshots
 │   ├── SplashScreen.jsx          One-shot launch animation
 │   ├── OnboardingSlides.jsx      First-run carousel
-│   ├── WheelColumn.jsx           iOS-style picker (shared)
+│   ├── WheelColumn.jsx           iOS-style picker (shared, keyboard-accessible)
+│   ├── RingProgress.jsx          SVG donut progress (shared)
+│   ├── StatPager.jsx             Swipeable stat carousel (shared)
+│   ├── Collapse.jsx              Height-animated expand/collapse (shared)
+│   ├── SwapFade.jsx              Cross-fade between swapped content (shared)
 │   └── ErrorBoundary.jsx         Crash recovery shell
 │
 ├── state/
-│   └── storage.js                load/save + schema versioning
+│   └── storage.js                load/save/import + schema versioning + shape guards
 │
 ├── utils/
 │   ├── date.js                   Timezone-safe date helpers
-│   ├── money.js                  Currency formatting
+│   ├── money.js                  Currency formatting + even installment split
+│   ├── locale.js                 Browser-locale resolution (grouping, month names)
 │   └── id.js                     Short unique IDs
+│
+├── eslint.config.js              ESLint flat config (React hooks rules)
+├── vitest.config.js              Vitest (jsdom) config
+├── *.test.js                     Unit tests co-located with utils/ and state/
 │
 ├── public/
 │   ├── favicon.ico               Multi-size (16/32/48)
@@ -242,16 +275,22 @@ If the effect depended on `state`, it would re-run on every mutation, with an in
 
 React hooks cannot catch render errors. There is no `useErrorBoundary` in stable React. This is the one place the class API is still required.
 
-### Why no tests yet?
+### Testing & linting
 
-The pure helpers in `utils/` and `state/storage.js` are testable and worth covering with vitest. UI components are mostly visual — Playwright or manual QA is more useful than snapshot tests. Tests are deferred, not opposed.
+The pure helpers carry unit coverage under **Vitest** (jsdom): `utils/date.js`,
+`utils/money.js` (including the even-split installment logic), and
+`state/storage.js` (load/import normalisation, corrupt-data fallback, shape
+guards). UI components stay visual — Playwright or manual QA is more useful
+there than snapshot tests. **ESLint** (flat config, React-hooks rules) gates the
+JS/JSX. Run with `npm test` and `npm run lint`.
 
 ---
 
 ## Future Work
 
-- Vitest + tests on `utils/date.js`, `utils/money.js`, `state/storage.js`.
-- ESLint + Prettier configuration.
-- Export / import JSON backup (one-tap "save my data").
+- ~~Vitest + tests on `utils/date.js`, `utils/money.js`, `state/storage.js`.~~ ✅ Done.
+- ~~Export / import JSON backup (one-tap "save my data").~~ ✅ Done (Settings → Backup).
+- Prettier configuration (ESLint is in place).
+- Backdate daily expenses (the date picker is currently installment-only).
 - Optional: end-of-month summary push notification.
 - Optional: split fixed expenses by category.
