@@ -298,6 +298,26 @@ export default function App() {
     return total;
   }, [state.debtGroups]);
 
+  // Overdue installments that were caught up *this* month. The cash left the
+  // account now, so they must keep reducing this month's safe-to-spend —
+  // without this, marking an overdue installment paid would make safe-to-spend
+  // jump up by the amount just paid. They age out automatically next month
+  // because paidMonth no longer matches. (Mirrors how fixed expenses use
+  // paidMonth.) Installments paid before this feature lack paidMonth and are
+  // treated as already settled in a prior month.
+  const installmentsOverduePaidThisMonth = useMemo(() => {
+    const month = currentMonthKey();
+    let total = 0;
+    state.debtGroups.forEach((g) => {
+      g.installments.forEach((i) => {
+        if (isBeforeCurrentMonth(i.dueDate) && i.isPaid && i.paidMonth === month) {
+          total += Number(i.amount || 0);
+        }
+      });
+    });
+    return total;
+  }, [state.debtGroups]);
+
   const fixedPaidThisMonth = useMemo(
     () => state.fixedExpenses
       .filter((e) => isFixedPaidThisMonth(e))
@@ -323,8 +343,12 @@ export default function App() {
     [state.dailyExpenses]
   );
 
+  // Overdue still owed (unpaid) plus overdue caught up this month both leave —
+  // or will leave — this month's money, so both reduce safe-to-spend.
+  const installmentsOverdueOwed = installmentsOverdueUnpaid + installmentsOverduePaidThisMonth;
+
   const safeToSpend =
-    Number(state.settings.salary || 0) - fixedGrandTotal - installmentsTotalThisMonth - installmentsOverdueUnpaid - dailyThisMonth;
+    Number(state.settings.salary || 0) - fixedGrandTotal - installmentsTotalThisMonth - installmentsOverdueOwed - dailyThisMonth;
 
   // "Spent" reflects money that has actually left the account: paid fixed bills,
   // paid installments, and daily expenses. Unpaid commitments still affect the
@@ -395,7 +419,9 @@ export default function App() {
           : {
               ...g,
               installments: g.installments.map((i) =>
-                i.id === instId ? { ...i, isPaid: !i.isPaid } : i
+                i.id === instId
+                  ? { ...i, isPaid: !i.isPaid, paidMonth: i.isPaid ? null : currentMonthKey() }
+                  : i
               ),
             }
       ),
