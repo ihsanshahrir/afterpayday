@@ -364,7 +364,7 @@ input { font: inherit; }
 .debt-card .top .trash-btn:hover { color: var(--rose); }
 .debt-card .dprogress { height: 6px; border-radius: 9999px; background: rgba(255,255,255,0.08); overflow: hidden; }
 .debt-card .dprogress > div { height: 100%; background: linear-gradient(90deg, var(--pink), var(--violet)); border-radius: 9999px; transition: width 500ms cubic-bezier(0.16,1,0.3,1); }
-.debt-card .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; font: 500 11px var(--mono); color: var(--fg-3); }
+.debt-card .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; font: 500 11px var(--mono); color: var(--fg-2); }
 .debt-card .meta > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .debt-card .meta .due-chip {
   font: 500 10px var(--font); color: var(--violet); flex-shrink: 0;
@@ -408,6 +408,23 @@ input { font: inherit; }
 .debt-card .inst-row .ia { font: 600 13px var(--font); font-variant-numeric: tabular-nums; color: var(--fg); white-space: nowrap; }
 .debt-card .inst-row .ix { background: none; border: 0; color: var(--fg-5); padding: 3px; transition: color 150ms ease; }
 .debt-card .inst-row .ix:hover { color: var(--rose); }
+/* Edit / save affordances shouldn't read as destructive — keep them neutral
+   on hover instead of the rose used for delete. */
+.fixed-card .fx-row .row-x[aria-label="Edit"]:hover,
+.fixed-card .fx-row .row-x[aria-label="Save"]:hover,
+.debt-card .inst-row .ix[aria-label="Edit"]:hover { color: var(--emerald); }
+
+/* Small urgent note shown under a "due" figure when prior-month installments
+   remain unpaid, so overdue debt never hides from the headline totals. */
+.overdue-note {
+  display: block;
+  margin-top: 3px;
+  font: 600 11px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--rose);
+  white-space: nowrap;
+}
+.pod .ps .overdue-note { letter-spacing: 0.01em; }
 .debt-card .inst-footer {
   display: flex; justify-content: space-between; align-items: center;
   padding: 10px 0 0; margin-top: 4px;

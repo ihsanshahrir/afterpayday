@@ -47,3 +47,12 @@ export const fmtMonthYear = (year, month1) =>
 
 // Lexicographic compare is safe for ISO dates; due-today is not overdue.
 export const isOverdue = (iso) => Boolean(iso) && iso < todayISO();
+
+// True when the ISO date falls in a month strictly before the current one.
+// Lexicographic compare works because a bare "YYYY-MM" sorts below any
+// "YYYY-MM-DD" in the same month, so only prior-month dates are matched.
+export const isBeforeCurrentMonth = (iso) => Boolean(iso) && iso < currentMonthKey();
+
+// `month` is 1-based (Jan = 1). `new Date(year, month, 0)` is day 0 of the
+// next 0-indexed month, which is the last day of the 1-based month passed in.
+export const daysInMonth = (month, year) => new Date(year, month, 0).getDate();

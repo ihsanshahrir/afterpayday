@@ -3,6 +3,7 @@ import { X, ChevronDown } from "lucide-react";
 import WheelColumn from "./WheelColumn";
 import Collapse from "./Collapse";
 import { importState } from "../state/storage.js";
+import { SHEET_ANIM_MS } from "../utils/ui.js";
 
 const CURRENCIES = [
   { code: "RM",  flag: "🇲🇾", name: "Malaysian Ringgit" },
@@ -27,7 +28,7 @@ export default function SettingsSheet({ settings, onSave, onExport, onImport }) 
 
   const close = (callback) => {
     setIsOpen(false);
-    setTimeout(callback, 400);
+    setTimeout(callback, SHEET_ANIM_MS);
   };
 
   // Auto-persist on close (X / scrim) to match the rest of the app, which

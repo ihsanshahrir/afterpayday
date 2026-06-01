@@ -2,24 +2,21 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
   Receipt, Plus, X, Check, Trash2, CreditCard,
-  Calendar,
+  Calendar, Pencil,
 } from "lucide-react";
 import WheelColumn from "./WheelColumn.jsx";
 import RingProgress from "./RingProgress.jsx";
 import Collapse from "./Collapse.jsx";
 import StatPager from "./StatPager.jsx";
 import { uid } from "../utils/id.js";
-import { todayISO, isFixedPaidThisMonth, isInCurrentMonth, isOverdue, fmtDate, fmtMonthYear } from "../utils/date.js";
+import { todayISO, isFixedPaidThisMonth, isInCurrentMonth, isBeforeCurrentMonth, isOverdue, daysInMonth, fmtDate, fmtMonthYear } from "../utils/date.js";
+import { SHEET_ANIM_MS } from "../utils/ui.js";
 import { formatMoney, splitEvenly } from "../utils/money.js";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
-
-// `month` is 1-based (Jan = 1). `new Date(year, month, 0)` is day 0 of the
-// next 0-indexed month, which is the last day of the 1-based month passed in.
-const daysInMonth = (month, year) => new Date(year, month, 0).getDate();
 
 export default function Commitments({
   currency,
@@ -28,12 +25,14 @@ export default function Commitments({
   fixedGrandTotal,
   debtGroups,
   onAddFixed,
+  onEditFixed,
   onRemoveFixed,
   onToggleFixed,
   onAddDebtGroup,
   onRemoveDebtGroup,
   onToggleInstallment,
   onAddInstallment,
+  onEditInstallment,
   onRemoveInstallment,
 }) {
   return (
@@ -44,6 +43,7 @@ export default function Commitments({
         total={fixedGrandTotal}
         unpaidTotal={fixedTotal}
         onAdd={onAddFixed}
+        onEdit={onEditFixed}
         onRemove={onRemoveFixed}
         onToggle={onToggleFixed}
       />
@@ -54,17 +54,36 @@ export default function Commitments({
         onRemoveGroup={onRemoveDebtGroup}
         onToggle={onToggleInstallment}
         onAddInstallment={onAddInstallment}
+        onEditInstallment={onEditInstallment}
         onRemoveInstallment={onRemoveInstallment}
       />
     </div>
   );
 }
 
-function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRemove, onToggle }) {
+function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onEdit, onRemove, onToggle }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+
+  const startEdit = (e) => {
+    setEditingId(e.id);
+    setEditName(e.name);
+    setEditAmount(String(e.amount));
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  const saveEdit = () => {
+    const a = parseFloat(editAmount);
+    if (!editName.trim() || !Number.isFinite(a) || a <= 0) return;
+    onEdit(editingId, editName.trim(), a);
+    setEditingId(null);
+  };
 
   const paidCount = items.filter((e) => isFixedPaidThisMonth(e)).length;
   const totalCount = items.length;
@@ -82,6 +101,43 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
 
   const renderFixedRow = (e) => {
     const isPaid = isFixedPaidThisMonth(e);
+
+    if (editingId === e.id) {
+      return (
+        <div key={e.id} className="fx-row editing">
+          <input
+            type="text"
+            aria-label="Expense name"
+            value={editName}
+            onChange={(ev) => setEditName(ev.target.value)}
+            className="glass-input"
+            style={{ flex: 1, minWidth: 0 }}
+          />
+          <div style={{ position: "relative", width: 110 }}>
+            <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--fg-3)", font: "500 13px var(--font)", pointerEvents: "none" }}>
+              {currency}
+            </span>
+            <input
+              type="number"
+              inputMode="decimal"
+              aria-label={`Amount in ${currency}`}
+              value={editAmount}
+              onChange={(ev) => setEditAmount(ev.target.value)}
+              onKeyDown={(ev) => ev.key === "Enter" && saveEdit()}
+              className="glass-input"
+              style={{ paddingLeft: "2.8rem" }}
+            />
+          </div>
+          <button className="row-x" onClick={saveEdit} aria-label="Save">
+            <Check size={15} strokeWidth={2} />
+          </button>
+          <button className="row-x" onClick={cancelEdit} aria-label="Cancel edit">
+            <X size={15} strokeWidth={1.75} />
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div key={e.id} className={`fx-row${isPaid ? " paid" : ""}`}>
         <button
@@ -94,6 +150,13 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
         <span className="name">{e.name}</span>
         {isPaid && <span className="tag">PAID</span>}
         <span className="amt">{formatMoney(e.amount, currency)}</span>
+        <button
+          className="row-x"
+          onClick={() => startEdit(e)}
+          aria-label="Edit"
+        >
+          <Pencil size={13} strokeWidth={1.75} />
+        </button>
         <button
           className="row-x"
           onClick={() => onRemove(e.id)}
@@ -237,7 +300,7 @@ function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onRe
   );
 }
 
-function DebtSection({ currency, groups, onAddGroup, onRemoveGroup, onToggle, onAddInstallment, onRemoveInstallment }) {
+function DebtSection({ currency, groups, onAddGroup, onRemoveGroup, onToggle, onAddInstallment, onEditInstallment, onRemoveInstallment }) {
   const [creating, setCreating] = useState(false);
 
   return (
@@ -287,6 +350,7 @@ function DebtSection({ currency, groups, onAddGroup, onRemoveGroup, onToggle, on
               onRemoveGroup={() => onRemoveGroup(g.id)}
               onToggle={(instId) => onToggle(g.id, instId)}
               onAddInstallment={(inst) => onAddInstallment(g.id, inst)}
+              onEditInstallment={(instId, patch) => onEditInstallment(g.id, instId, patch)}
               onRemoveInstallment={(instId) => onRemoveInstallment(g.id, instId)}
             />
           ))}
@@ -313,7 +377,10 @@ function DebtSummary({ currency, groups }) {
     .reduce((s, i) => s + Number(i.amount || 0), 0);
   const thisMonthTotal = thisMonthPaid + thisMonthDue;
   const monthProgress = thisMonthTotal > 0 ? thisMonthPaid / thisMonthTotal : 1;
-  const allCaughtUp = thisMonthDue === 0;
+  const overdue = all
+    .filter((i) => !i.isPaid && isBeforeCurrentMonth(i.dueDate))
+    .reduce((s, i) => s + Number(i.amount || 0), 0);
+  const allCaughtUp = thisMonthDue === 0 && overdue === 0;
 
   return (
     <div className="glass debt-summary">
@@ -335,6 +402,9 @@ function DebtSummary({ currency, groups }) {
             <span className={`v ${allCaughtUp ? "paid" : "due"}`}>
               {formatMoney(thisMonthDue, currency)}
             </span>
+            {overdue > 0 && (
+              <span className="overdue-note">{formatMoney(overdue, currency)} overdue</span>
+            )}
           </div>,
           <div key="breakdown" className="pager-row">
             <div className="ds-stat">
@@ -385,7 +455,7 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
         const yyyy = monthDate.getFullYear();
         const mIdx = monthDate.getMonth();
         const mmStr = String(mIdx + 1).padStart(2, "0");
-        const maxD = new Date(yyyy, mIdx + 1, 0).getDate();
+        const maxD = daysInMonth(mIdx + 1, yyyy);
         const day = Math.min(dd, maxD);
         const ddStr = String(day).padStart(2, "0");
         return {
@@ -410,7 +480,9 @@ function NewDebtGroupForm({ currency, onCancel, onCreate }) {
     Number.isFinite(previewN) && previewN > 0 && previewN <= 600;
   let previewText = null;
   if (showPreview) {
-    const per = previewT / previewN;
+    // Show the same rounded per-month figure the installments will actually
+    // use (splitEvenly's base), so the preview can't be a cent off the rows.
+    const per = splitEvenly(previewT, previewN)[0];
     const [yy, mm] = startDate.split("-").map(Number);
     const end = new Date(yy, mm - 1 + (previewN - 1), 1);
     previewText = `${formatMoney(per, currency)} / month · ${previewN} month${previewN > 1 ? "s" : ""} · ends ${fmtMonthYear(end.getFullYear(), end.getMonth() + 1)}`;
@@ -569,12 +641,12 @@ function DatePickerModal({ mode, initialDay, initialMonth, initialYear, onConfir
 
   const confirm = () => {
     setIsOpen(false);
-    setTimeout(() => onConfirm(selectedDay, selectedMonth, selectedYear), 400);
+    setTimeout(() => onConfirm(selectedDay, selectedMonth, selectedYear), SHEET_ANIM_MS);
   };
 
   const cancel = () => {
     setIsOpen(false);
-    setTimeout(onCancel, 400);
+    setTimeout(onCancel, SHEET_ANIM_MS);
   };
 
   const isDateMode = mode === "date";
@@ -635,10 +707,11 @@ function DatePickerModal({ mode, initialDay, initialMonth, initialYear, onConfir
   );
 }
 
-function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallment, onRemoveInstallment }) {
+function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallment, onEditInstallment, onRemoveInstallment }) {
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [addingInst, setAddingInst] = useState(false);
+  const [editingInstId, setEditingInstId] = useState(null);
 
   const totalCount = group.installments.length;
   const paidCount = group.installments.filter((i) => i.isPaid).length;
@@ -673,6 +746,23 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
   const hasMore = restInst.length > 0;
 
   const renderInstRow = (i) => {
+    if (editingInstId === i.id) {
+      return (
+        <div key={i.id} className="inst-row editing" style={{ paddingBottom: 10 }}>
+          <ManualInstallmentForm
+            currency={currency}
+            initial={i}
+            submitLabel="Save"
+            onCancel={() => setEditingInstId(null)}
+            onSubmit={(fields) => {
+              onEditInstallment(i.id, fields);
+              setEditingInstId(null);
+            }}
+          />
+        </div>
+      );
+    }
+
     const st = statusOf(i);
     const isNext = nextDue && i.id === nextDue.id;
     return (
@@ -690,6 +780,9 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
         </div>
         {st && <span className={`pill ${st.cls}`}>{st.txt}</span>}
         <span className="ia">{formatMoney(i.amount, currency)}</span>
+        <button className="ix" onClick={() => setEditingInstId(i.id)} aria-label="Edit">
+          <Pencil size={12} strokeWidth={1.75} />
+        </button>
         <button className="ix" onClick={() => onRemoveInstallment(i.id)} aria-label="Remove">
           <Trash2 size={12} strokeWidth={1.75} />
         </button>
@@ -782,8 +875,8 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
               <ManualInstallmentForm
                 currency={currency}
                 onCancel={() => setAddingInst(false)}
-                onAdd={(inst) => {
-                  onAddInstallment(inst);
+                onSubmit={(fields) => {
+                  onAddInstallment({ id: uid(), ...fields, isPaid: false });
                   setAddingInst(false);
                 }}
               />
@@ -795,15 +888,15 @@ function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallm
   );
 }
 
-function ManualInstallmentForm({ currency, onCancel, onAdd }) {
-  const [label, setLabel] = useState("");
-  const [amount, setAmount] = useState("");
-  const [dueDate, setDueDate] = useState(todayISO());
+function ManualInstallmentForm({ currency, onCancel, onSubmit, initial = null, submitLabel = "Add" }) {
+  const [label, setLabel] = useState(initial?.label ?? "");
+  const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
+  const [dueDate, setDueDate] = useState(initial?.dueDate ?? todayISO());
 
   const submit = () => {
     const a = parseFloat(amount);
     if (!label.trim() || !Number.isFinite(a) || a <= 0 || !dueDate) return;
-    onAdd({ id: uid(), label: label.trim(), amount: a, dueDate, isPaid: false });
+    onSubmit({ label: label.trim(), amount: a, dueDate });
   };
 
   return (
@@ -839,7 +932,7 @@ function ManualInstallmentForm({ currency, onCancel, onAdd }) {
           <DatePickerField value={dueDate} onChange={setDueDate} />
         </div>
         <button onClick={onCancel} className="glass-btn-secondary" style={{ padding: "0 14px" }}>Cancel</button>
-        <button onClick={submit} className="glass-btn-primary" style={{ padding: "0 16px" }}>Add</button>
+        <button onClick={submit} className="glass-btn-primary" style={{ padding: "0 16px" }}>{submitLabel}</button>
       </div>
     </div>
   );
