@@ -47,7 +47,7 @@ export default function SplashScreen({ onDone }) {
           : 'transform 0.5s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease',
         willChange: 'transform, opacity',
       }}>
-        <img src="/app-icon.png" alt="AfterPayday" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <img src={`${import.meta.env.BASE_URL}app-icon.png`} alt="AfterPayday" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       </div>
       <span style={{
         color: '#10b981', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em',
