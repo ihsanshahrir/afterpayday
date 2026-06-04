@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  base: '/afterpayday/',
   plugins: [
     react(),
     VitePWA({
@@ -16,8 +17,8 @@ export default defineConfig({
         background_color: '#06040e',
         display: 'standalone',
         orientation: 'portrait-primary',
-        scope: '/',
-        start_url: '/',
+        scope: '/afterpayday/',
+        start_url: '/afterpayday/',
         icons: [
           {
             src: 'icon-192.png',
