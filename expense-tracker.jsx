@@ -507,7 +507,7 @@ export default function App() {
           {/* Header */}
           <header className="glass appheader" style={{ margin: "12px 14px 0" }}>
             <div className="av">
-              <img src="/app-icon.png" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} />
+              <img src={`${import.meta.env.BASE_URL}app-icon.png`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} />
             </div>
             <div className="who">
               <div className="h">AfterPayday</div>
