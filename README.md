@@ -102,18 +102,6 @@ AfterPayday is a fully offline-capable Progressive Web App. Install it to your h
 ├── vite.config.js       # Build & PWA config
 └── index.html           # HTML shell with PWA meta tags
 ```
-
----
-
-## Deployment
-
-The app deploys to GitHub Pages via the `.github/workflows/` pipeline. The base path is `/afterpayday/`.
-
-```bash
-npm run build    # outputs to dist/
-npm run preview  # preview the production build locally
-```
-
 ---
 
 ## License
