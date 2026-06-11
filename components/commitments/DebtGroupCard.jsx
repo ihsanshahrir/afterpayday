@@ -47,7 +47,7 @@ export default function DebtGroupCard({ group, currency, onRemoveGroup, onToggle
   const renderInstRow = (i) => {
     if (editingInstId === i.id) {
       return (
-        <div key={i.id} className="inst-row editing" style={{ paddingBottom: 10 }}>
+        <li key={i.id} className="inst-row editing" style={{ paddingBottom: 10 }}>
           <ManualInstallmentForm
             currency={currency}
             initial={i}
@@ -58,18 +58,18 @@ export default function DebtGroupCard({ group, currency, onRemoveGroup, onToggle
               setEditingInstId(null);
             }}
           />
-        </div>
+        </li>
       );
     }
 
     const st = statusOf(i);
     const isNext = nextDue && i.id === nextDue.id;
     return (
-      <div key={i.id} className={`inst-row${i.isPaid ? " paid" : ""}${isNext ? " next" : ""}`}>
+      <li key={i.id} className={`inst-row${i.isPaid ? " paid" : ""}${isNext ? " next" : ""}`}>
         <button
           className={`check${i.isPaid ? " on" : ""}`}
           onClick={() => onToggle(i.id)}
-          aria-label={i.isPaid ? "Mark unpaid" : "Mark paid"}
+          aria-label={i.isPaid ? `Mark ${i.label} unpaid` : `Mark ${i.label} paid`}
         >
           {i.isPaid && <Check size={11} style={{ color: "#06281d" }} strokeWidth={3} />}
         </button>
@@ -79,13 +79,13 @@ export default function DebtGroupCard({ group, currency, onRemoveGroup, onToggle
         </div>
         {st && <span className={`pill ${st.cls}`}>{st.txt}</span>}
         <span className="ia">{formatMoney(i.amount, currency)}</span>
-        <button className="ix" onClick={() => setEditingInstId(i.id)} aria-label="Edit">
+        <button className="ix" onClick={() => setEditingInstId(i.id)} aria-label={`Edit ${i.label}`}>
           <Pencil size={12} strokeWidth={1.75} />
         </button>
-        <button className="ix" onClick={() => onRemoveInstallment(i.id)} aria-label="Remove">
+        <button className="ix" onClick={() => onRemoveInstallment(i.id)} aria-label={`Delete ${i.label}`}>
           <Trash2 size={12} strokeWidth={1.75} />
         </button>
-      </div>
+      </li>
     );
   };
 
@@ -100,7 +100,7 @@ export default function DebtGroupCard({ group, currency, onRemoveGroup, onToggle
             <span className="of">/mo</span>
           </span>
         )}
-        <button className="trash-btn" onClick={onRemoveGroup} aria-label="Remove group">
+        <button className="trash-btn" onClick={onRemoveGroup} aria-label={`Delete ${group.name} group`}>
           <Trash2 size={14} strokeWidth={1.75} />
         </button>
       </div>
@@ -137,10 +137,14 @@ export default function DebtGroupCard({ group, currency, onRemoveGroup, onToggle
             </div>
           ) : (
             <>
-              {previewInst.map(renderInstRow)}
+              <ul role="list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                {previewInst.map(renderInstRow)}
+              </ul>
 
               <Collapse open={showAll}>
-                {restInst.map(renderInstRow)}
+                <ul role="list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                  {restInst.map(renderInstRow)}
+                </ul>
               </Collapse>
 
               {hasMore && (

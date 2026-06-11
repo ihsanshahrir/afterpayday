@@ -49,7 +49,7 @@ export default function FixedExpensesSection({ currency, storageFull, items, tot
 
     if (editingId === e.id) {
       return (
-        <div key={e.id} className="fx-row editing">
+        <li key={e.id} className="fx-row editing">
           <input
             type="text"
             aria-label="Expense name"
@@ -79,16 +79,16 @@ export default function FixedExpensesSection({ currency, storageFull, items, tot
           <button className="row-x" onClick={cancelEdit} aria-label="Cancel edit">
             <X size={15} strokeWidth={1.75} />
           </button>
-        </div>
+        </li>
       );
     }
 
     return (
-      <div key={e.id} className={`fx-row${isPaid ? " paid" : ""}`}>
+      <li key={e.id} className={`fx-row${isPaid ? " paid" : ""}`}>
         <button
           className={`check${isPaid ? " on" : ""}`}
           onClick={() => onToggle(e.id)}
-          aria-label={isPaid ? "Mark unpaid" : "Mark paid"}
+          aria-label={isPaid ? `Mark ${e.name} unpaid` : `Mark ${e.name} paid`}
         >
           {isPaid && <Check size={12} style={{ color: "#06281d" }} strokeWidth={3} />}
         </button>
@@ -98,18 +98,18 @@ export default function FixedExpensesSection({ currency, storageFull, items, tot
         <button
           className="row-x"
           onClick={() => startEdit(e)}
-          aria-label="Edit"
+          aria-label={`Edit ${e.name}`}
         >
           <Pencil size={13} strokeWidth={1.75} />
         </button>
         <button
           className="row-x"
           onClick={() => onRemove(e.id)}
-          aria-label="Remove"
+          aria-label={`Delete ${e.name}`}
         >
           <Trash2 size={14} strokeWidth={1.75} />
         </button>
-      </div>
+      </li>
     );
   };
 
@@ -224,10 +224,14 @@ export default function FixedExpensesSection({ currency, storageFull, items, tot
               </div>
             )}
 
-            {previewItems.map(renderFixedRow)}
+            <ul role="list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+              {previewItems.map(renderFixedRow)}
+            </ul>
 
             <Collapse open={showAll}>
-              {restItems.map(renderFixedRow)}
+              <ul role="list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                {restItems.map(renderFixedRow)}
+              </ul>
             </Collapse>
 
             {hasMore && (

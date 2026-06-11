@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import WheelColumn from "../WheelColumn.jsx";
 import { daysInMonth } from "../../utils/date.js";
 import { SHEET_ANIM_MS } from "../../utils/ui.js";
+import useFocusTrap from "../../hooks/useFocusTrap.js";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -40,6 +41,9 @@ export default function DatePickerModal({ mode, initialDay, initialMonth, initia
     setTimeout(onCancel, SHEET_ANIM_MS);
   };
 
+  const sheetRef = useRef(null);
+  useFocusTrap(sheetRef, { active: isOpen, onEscape: cancel });
+
   const isDateMode = mode === "date";
   const title = isDateMode ? "Select date" : "Select month";
 
@@ -47,6 +51,7 @@ export default function DatePickerModal({ mode, initialDay, initialMonth, initia
     <>
       <div className={`scrim${isOpen ? " on" : ""}`} onClick={cancel} />
       <div
+        ref={sheetRef}
         className={`sheet${isOpen ? " on" : ""}`}
         role="dialog"
         aria-modal="true"

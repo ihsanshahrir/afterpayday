@@ -5,6 +5,7 @@ import Collapse from "./Collapse";
 import { importState } from "../state/storage.js";
 import { SHEET_ANIM_MS } from "../utils/ui.js";
 import { CURRENCIES } from "../utils/currencies.js";
+import useFocusTrap from "../hooks/useFocusTrap.js";
 
 export default function SettingsSheet({ settings, onSave, onExport, onImport }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,6 +14,7 @@ export default function SettingsSheet({ settings, onSave, onExport, onImport }) 
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [importError, setImportError] = useState(null);
   const fileInputRef = useRef(null);
+  const sheetRef = useRef(null);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setIsOpen(true));
@@ -67,12 +69,16 @@ export default function SettingsSheet({ settings, onSave, onExport, onImport }) 
     reader.readAsText(file);
   };
 
+  // Escape mirrors the scrim: settings auto-persist on close.
+  useFocusTrap(sheetRef, { active: isOpen, onEscape: save });
+
   const curr = CURRENCIES.find((c) => c.code === currency) || CURRENCIES[0];
 
   return (
     <>
       <div className={`scrim${isOpen ? " on" : ""}`} onClick={save} />
       <div
+        ref={sheetRef}
         className={`sheet${isOpen ? " on" : ""}`}
         role="dialog"
         aria-modal="true"

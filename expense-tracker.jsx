@@ -23,6 +23,7 @@ import Dashboard from "./components/Dashboard.jsx";
 import Commitments from "./components/Commitments.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
 import HistorySheet from "./components/HistorySheet.jsx";
+import useFocusTrap from "./hooks/useFocusTrap.js";
 
 const CHIPS = [
   { id: "food",   label: "☕ Food" },
@@ -37,6 +38,11 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
   const [desc, setDesc] = useState("");
   const [cat, setCat] = useState("food");
   const amtRef = useRef(null);
+  const sheetRef = useRef(null);
+
+  // The sheet already focuses the amount input on its own schedule (timed to
+  // the slide-in), so the trap only contains Tab and handles Escape.
+  useFocusTrap(sheetRef, { active: open, onEscape: onClose, initialFocus: false });
 
   useEffect(() => {
     if (open) {
@@ -60,6 +66,7 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
     <>
       <div className={`scrim${open ? " on" : ""}`} onClick={onClose} />
       <div
+        ref={sheetRef}
         className={`sheet${open ? " on" : ""}`}
         role="dialog"
         aria-modal="true"
@@ -496,6 +503,7 @@ export default function App() {
 
         {/* Floating tab bar */}
         <nav
+          aria-label="Primary"
           style={{
             position: "fixed",
             bottom: 0,
@@ -514,9 +522,20 @@ export default function App() {
               maxWidth: 420,
               marginBottom: "max(8px, env(safe-area-inset-bottom))",
             }}
+            onKeyDown={(e) => {
+              // Light roving enhancement: arrow keys move selection and focus
+              // between the two tabs.
+              if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+              const next = tab === "dashboard" ? "commitments" : "dashboard";
+              setTab(next);
+              e.currentTarget
+                .querySelector(next === "dashboard" ? "button:first-of-type" : "button:nth-of-type(2)")
+                ?.focus();
+            }}
           >
             <button
               className={tab === "dashboard" ? "active" : ""}
+              aria-current={tab === "dashboard" ? "page" : undefined}
               onClick={() => setTab("dashboard")}
             >
               <LayoutDashboard size={18} strokeWidth={1.75} />
@@ -524,6 +543,7 @@ export default function App() {
             </button>
             <button
               className={tab === "commitments" ? "active" : ""}
+              aria-current={tab === "commitments" ? "page" : undefined}
               onClick={() => setTab("commitments")}
             >
               <ListChecks size={18} strokeWidth={1.75} />
