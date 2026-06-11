@@ -6,7 +6,7 @@ import StatPager from "../StatPager.jsx";
 import { isFixedPaidThisMonth } from "../../utils/date.js";
 import { formatMoney } from "../../utils/money.js";
 
-export default function FixedExpensesSection({ currency, items, total, unpaidTotal, onAdd, onEdit, onRemove, onToggle }) {
+export default function FixedExpensesSection({ currency, storageFull, items, total, unpaidTotal, onAdd, onEdit, onRemove, onToggle }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
@@ -134,6 +134,8 @@ export default function FixedExpensesSection({ currency, items, total, unpaidTot
           onClick={() => setAdding((v) => !v)}
           className={adding ? "cancel-add" : "add"}
           aria-label={adding ? "Cancel" : "Add expense"}
+          disabled={!adding && storageFull}
+          aria-disabled={!adding && storageFull}
         >
           {adding ? <><X size={13} strokeWidth={1.75} /> Cancel</> : <><Plus size={13} strokeWidth={1.75} /> Add</>}
         </button>

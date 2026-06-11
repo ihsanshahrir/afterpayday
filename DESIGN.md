@@ -52,21 +52,25 @@ No backend, no database, no authentication.
 
 ```js
 {
-  _version: 1,
+  _version: 2,
   currentMonth: "2026-05",
   settings: { salary: Number, currency: String },
   fixedExpenses: [{ id, name, amount, paidMonth }],
-  debtGroups: [{ id, name, installments: [{ id, label, amount, dueDate, isPaid }] }],
-  dailyExpenses: [{ id, amount, description, date, category }], // amount < 0 = refund
+  debtGroups: [{ id, name, installments: [{ id, label, amount, dueDate, isPaid, paidMonth }] }],
+  dailyExpenses: [{ id, amount, description, date, category, kind }], // amount always > 0
   history: [{ id, month, salary, fixedTotal, installments, dailySpent, balance }],
 }
 ```
 
 `currentMonth` and `history` aren't in the on-disk default — `loadState` /
-`importState` inject them (and coerce every array field) so an old or partial
+`importState` inject them (and validate every field) so an old or partial
 save is upgraded to this shape on load. `category` is one of
-`food | fuel | shop | other | refund`; a refund is stored as a negative
-`amount` so it lifts safe-to-spend and renders as an inbound row.
+`food | fuel | shop | other | refund` and is presentational; `kind`
+(`expense | refund`) is the source of truth for direction. Amounts are always
+stored positive — a refund lifts safe-to-spend and renders as an inbound row
+because of its `kind`, not its sign. (v1 stored refunds as negative amounts;
+the v1→v2 migration converts them and backfills `paidMonth: null` on
+installments that predate the field.)
 
 Single root state object held in `App`. All mutations flow through small named helpers (`addFixedExpense`, `toggleInstallmentPaid`, etc.) — no reducer, no context. The app is small enough that prop drilling stays readable.
 
@@ -75,7 +79,7 @@ Single root state object held in `App`. All mutations flow through small named h
 - `loadState()`: reads localStorage, runs forward migration, returns merged state built from **fresh** defaults (no shared array/object references, so loaded state is safe to mutate).
 - `importState(parsed)`: validates a parsed backup object (rejects non-objects / arrays), then runs it through the same normaliser. Returns `null` for unrecognised input.
 - `saveState(state)`: writes JSON, returns `true` on success / `false` on `QuotaExceededError`. The boolean lets the UI surface a banner when storage is full.
-- **Shape guards**: every array field (`fixedExpenses`, `debtGroups`, `dailyExpenses`, `history`) is coerced to `[]` if it isn't an array, so a truncated write or hand-edited backup can't crash the app at render.
+- **Shape guards + sanitizers**: every array field (`fixedExpenses`, `debtGroups`, `dailyExpenses`, `history`) is coerced to `[]` if it isn't an array, and every item is validated — non-finite amounts and malformed dates drop the entry, `paidMonth`/`dueDate` are coerced to valid values or `null`, and unknown currencies fall back to the default — so a truncated write or hand-edited backup can't crash the app or skew the safe-to-spend math.
 - Schema versioning via `_version` field. New versions add a migration step in `migrate()`; old saves are upgraded on load.
 
 ### Durability & backup

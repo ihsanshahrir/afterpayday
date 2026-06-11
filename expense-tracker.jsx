@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   Settings as SettingsIcon,
-  X,
   LayoutDashboard,
   ListChecks,
   History,
@@ -25,7 +24,7 @@ const CHIPS = [
   { id: "refund", label: "↺ Refund" },
 ];
 
-function AddSheet({ open, currency, onClose, onSave }) {
+function AddSheet({ open, currency, storageFull, onClose, onSave }) {
   const [amount, setAmount] = useState("");
   const [desc, setDesc] = useState("");
   const [cat, setCat] = useState("food");
@@ -45,10 +44,8 @@ function AddSheet({ open, currency, onClose, onSave }) {
   const valid = Number.isFinite(a) && a > 0;
 
   const submit = () => {
-    if (!valid) return;
-    // A refund is money coming back in, stored as a negative amount so it
-    // lifts safe-to-spend and shows as an inbound row in the list.
-    onSave(cat === "refund" ? -a : a, desc.trim(), cat);
+    if (!valid || storageFull) return;
+    onSave(a, desc.trim(), cat);
   };
 
   return (
@@ -95,7 +92,7 @@ function AddSheet({ open, currency, onClose, onSave }) {
         </div>
         <div className="sheet-actions">
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn-primary" disabled={!valid} onClick={submit}>
+          <button className="btn-primary" disabled={!valid || storageFull} onClick={submit}>
             {cat === "refund" ? "Save refund" : "Save expense"}
           </button>
         </div>
@@ -194,7 +191,9 @@ export default function App() {
 
       let dailySpent = 0;
       s.dailyExpenses.forEach(e => {
-        if (e.date && e.date.startsWith(m)) dailySpent += Number(e.amount || 0);
+        if (e.date && e.date.startsWith(m)) {
+          dailySpent += e.kind === "refund" ? -Number(e.amount || 0) : Number(e.amount || 0);
+        }
       });
 
       const snapshot = {
@@ -339,7 +338,10 @@ export default function App() {
     () =>
       state.dailyExpenses
         .filter((e) => isInCurrentMonth(e.date))
-        .reduce((s, e) => s + Number(e.amount || 0), 0),
+        .reduce(
+          (s, e) => s + (e.kind === "refund" ? -Number(e.amount || 0) : Number(e.amount || 0)),
+          0
+        ),
     [state.dailyExpenses]
   );
 
@@ -359,11 +361,13 @@ export default function App() {
   const updateSettings = (patch) =>
     setState((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
 
-  const addFixedExpense = (name, amount) =>
+  const addFixedExpense = (name, amount) => {
+    if (storageError) return;
     setState((s) => ({
       ...s,
       fixedExpenses: [...s.fixedExpenses, { id: uid(), name, amount: Number(amount), paidMonth: null }],
     }));
+  };
 
   const toggleFixedPaid = (id) =>
     setState((s) => ({
@@ -388,22 +392,35 @@ export default function App() {
     setState((s) => ({ ...s, fixedExpenses: s.fixedExpenses.filter((e) => e.id !== id) }));
   };
 
-  const addDailyExpense = (amount, description, category = "other") =>
+  const addDailyExpense = (amount, description, category = "other") => {
+    if (storageError) return;
+    // Amounts are always stored positive; `kind` records direction. A refund
+    // is money coming back in, so it lifts safe-to-spend.
     setState((s) => ({
       ...s,
       dailyExpenses: [
-        { id: uid(), amount: Number(amount), description, date: todayISO(), category },
+        {
+          id: uid(),
+          amount: Number(amount),
+          description,
+          date: todayISO(),
+          category,
+          kind: category === "refund" ? "refund" : "expense",
+        },
         ...s.dailyExpenses,
       ],
     }));
+  };
 
   const removeDailyExpense = (id) => {
     requestUndo("Expense deleted");
     setState((s) => ({ ...s, dailyExpenses: s.dailyExpenses.filter((e) => e.id !== id) }));
   };
 
-  const addDebtGroup = (group) =>
+  const addDebtGroup = (group) => {
+    if (storageError) return;
     setState((s) => ({ ...s, debtGroups: [...s.debtGroups, group] }));
+  };
 
   const removeDebtGroup = (id) => {
     requestUndo("Debt group deleted");
@@ -427,13 +444,15 @@ export default function App() {
       ),
     }));
 
-  const addInstallmentToGroup = (groupId, installment) =>
+  const addInstallmentToGroup = (groupId, installment) => {
+    if (storageError) return;
     setState((s) => ({
       ...s,
       debtGroups: s.debtGroups.map((g) =>
         g.id !== groupId ? g : { ...g, installments: [...g.installments, installment] }
       ),
     }));
+  };
 
   const editInstallment = (groupId, instId, patch) =>
     setState((s) => ({
@@ -542,6 +561,7 @@ export default function App() {
           ) : (
             <Commitments
               currency={currency}
+              storageFull={storageError}
               fixedExpenses={state.fixedExpenses}
               fixedTotal={fixedTotal}
               fixedGrandTotal={fixedGrandTotal}
@@ -599,6 +619,8 @@ export default function App() {
               className="fab"
               onClick={() => setShowAddSheet(true)}
               aria-label="Add expense"
+              disabled={storageError}
+              aria-disabled={storageError}
             >
               ＋
             </button>
@@ -609,6 +631,7 @@ export default function App() {
         <AddSheet
           open={showAddSheet}
           currency={currency}
+          storageFull={storageError}
           onClose={() => setShowAddSheet(false)}
           onSave={(amount, desc, cat) => {
             addDailyExpense(amount, desc, cat);
@@ -655,14 +678,16 @@ export default function App() {
 
         {storageError && (
           <div className="fixed bottom-16 left-0 right-0 z-40 mx-auto max-w-md px-4">
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-red-800/60 bg-red-950/90 px-4 py-3 text-sm text-red-300 shadow-lg backdrop-blur">
-              <span>Storage full — changes may not be saved. Free up space to continue.</span>
+            <div
+              role="alert"
+              className="flex items-center justify-between gap-3 rounded-xl border border-red-800/60 bg-red-950/90 px-4 py-3 text-sm text-red-300 shadow-lg backdrop-blur"
+            >
+              <span>Storage full — adding new entries is paused. Export a backup or delete entries to continue.</span>
               <button
-                onClick={() => setStorageError(false)}
-                className="shrink-0 text-red-400 hover:text-red-200"
-                aria-label="Dismiss"
+                onClick={handleExport}
+                className="shrink-0 font-semibold text-red-200 hover:text-white"
               >
-                <X size={15} />
+                Export backup
               </button>
             </div>
           </div>

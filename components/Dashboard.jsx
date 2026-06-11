@@ -133,9 +133,9 @@ export default function Dashboard({
             <div className="empty">No expenses {showAllMonth ? "this month" : "today"} yet.</div>
           ) : (
             list.map((e) => {
-              const cat = e.category || (Number(e.amount) < 0 ? "refund" : "other");
+              const isRefund = e.kind === "refund";
+              const cat = e.category || (isRefund ? "refund" : "other");
               const meta = CATEGORY_META[cat] || CATEGORY_META.other;
-              const isRefund = Number(e.amount) < 0;
               return (
                 <div key={e.id} className={`it ${isRefund ? "in" : "out"}`}>
                   <div className="ic" style={{ background: meta.bg, color: meta.color }} aria-hidden="true">

@@ -5,7 +5,7 @@ import DebtSummary from "./DebtSummary.jsx";
 import DebtGroupCard from "./DebtGroupCard.jsx";
 import NewDebtGroupForm from "./NewDebtGroupForm.jsx";
 
-export default function DebtSection({ currency, groups, onAddGroup, onRemoveGroup, onToggle, onAddInstallment, onEditInstallment, onRemoveInstallment }) {
+export default function DebtSection({ currency, storageFull, groups, onAddGroup, onRemoveGroup, onToggle, onAddInstallment, onEditInstallment, onRemoveInstallment }) {
   const [creating, setCreating] = useState(false);
 
   return (
@@ -17,6 +17,8 @@ export default function DebtSection({ currency, groups, onAddGroup, onRemoveGrou
           onClick={() => setCreating((v) => !v)}
           className={creating ? "cancel-add" : "add"}
           aria-label={creating ? "Cancel" : "Add debt group"}
+          disabled={!creating && storageFull}
+          aria-disabled={!creating && storageFull}
         >
           {creating ? <><X size={13} strokeWidth={1.75} /> Cancel</> : <><Plus size={13} strokeWidth={1.75} /> New group</>}
         </button>

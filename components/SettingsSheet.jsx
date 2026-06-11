@@ -4,14 +4,7 @@ import WheelColumn from "./WheelColumn";
 import Collapse from "./Collapse";
 import { importState } from "../state/storage.js";
 import { SHEET_ANIM_MS } from "../utils/ui.js";
-
-const CURRENCIES = [
-  { code: "RM",  flag: "🇲🇾", name: "Malaysian Ringgit" },
-  { code: "SGD", flag: "🇸🇬", name: "Singapore Dollar" },
-  { code: "USD", flag: "🇺🇸", name: "US Dollar" },
-  { code: "GBP", flag: "🇬🇧", name: "British Pound" },
-  { code: "EUR", flag: "🇪🇺", name: "Euro" },
-];
+import { CURRENCIES } from "../utils/currencies.js";
 
 export default function SettingsSheet({ settings, onSave, onExport, onImport }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -67,6 +60,9 @@ export default function SettingsSheet({ settings, onSave, onExport, onImport }) 
       } catch {
         setImportError("Could not read file. Make sure it is a valid JSON backup.");
       }
+    };
+    reader.onerror = () => {
+      setImportError("Could not read the file. Please try again.");
     };
     reader.readAsText(file);
   };
