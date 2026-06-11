@@ -133,7 +133,7 @@ export default function FixedExpensesSection({ currency, storageFull, items, tot
         <button
           onClick={() => setAdding((v) => !v)}
           className={adding ? "cancel-add" : "add"}
-          aria-label={adding ? "Cancel" : "Add expense"}
+          aria-label={adding ? "Cancel" : "Add fixed expense"}
           disabled={!adding && storageFull}
           aria-disabled={!adding && storageFull}
         >
