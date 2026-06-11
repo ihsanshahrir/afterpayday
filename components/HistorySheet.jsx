@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { formatMoney } from "../utils/money.js";
 import { LOCALE } from "../utils/locale.js";
 import { SHEET_ANIM_MS } from "../utils/ui.js";
+import useFocusTrap from "../hooks/useFocusTrap.js";
 
 export default function HistorySheet({ history, currency, onClose }) {
   const [isOpen, setIsOpen] = useState(false);
+  const sheetRef = useRef(null);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setIsOpen(true));
@@ -16,10 +18,13 @@ export default function HistorySheet({ history, currency, onClose }) {
     setTimeout(onClose, SHEET_ANIM_MS);
   };
 
+  useFocusTrap(sheetRef, { active: isOpen, onEscape: close });
+
   return (
     <>
       <div className={`scrim${isOpen ? " on" : ""}`} onClick={close} />
       <div
+        ref={sheetRef}
         className={`sheet${isOpen ? " on" : ""}`}
         role="dialog"
         aria-modal="true"

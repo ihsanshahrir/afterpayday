@@ -4,14 +4,8 @@ import WheelColumn from "./WheelColumn";
 import Collapse from "./Collapse";
 import { importState } from "../state/storage.js";
 import { SHEET_ANIM_MS } from "../utils/ui.js";
-
-const CURRENCIES = [
-  { code: "RM",  flag: "🇲🇾", name: "Malaysian Ringgit" },
-  { code: "SGD", flag: "🇸🇬", name: "Singapore Dollar" },
-  { code: "USD", flag: "🇺🇸", name: "US Dollar" },
-  { code: "GBP", flag: "🇬🇧", name: "British Pound" },
-  { code: "EUR", flag: "🇪🇺", name: "Euro" },
-];
+import { CURRENCIES } from "../utils/currencies.js";
+import useFocusTrap from "../hooks/useFocusTrap.js";
 
 export default function SettingsSheet({ settings, onSave, onExport, onImport }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -20,6 +14,7 @@ export default function SettingsSheet({ settings, onSave, onExport, onImport }) 
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [importError, setImportError] = useState(null);
   const fileInputRef = useRef(null);
+  const sheetRef = useRef(null);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setIsOpen(true));
@@ -68,8 +63,14 @@ export default function SettingsSheet({ settings, onSave, onExport, onImport }) 
         setImportError("Could not read file. Make sure it is a valid JSON backup.");
       }
     };
+    reader.onerror = () => {
+      setImportError("Could not read the file. Please try again.");
+    };
     reader.readAsText(file);
   };
+
+  // Escape mirrors the scrim: settings auto-persist on close.
+  useFocusTrap(sheetRef, { active: isOpen, onEscape: save });
 
   const curr = CURRENCIES.find((c) => c.code === currency) || CURRENCIES[0];
 
@@ -77,6 +78,7 @@ export default function SettingsSheet({ settings, onSave, onExport, onImport }) 
     <>
       <div className={`scrim${isOpen ? " on" : ""}`} onClick={save} />
       <div
+        ref={sheetRef}
         className={`sheet${isOpen ? " on" : ""}`}
         role="dialog"
         aria-modal="true"

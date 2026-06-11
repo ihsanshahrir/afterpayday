@@ -132,26 +132,32 @@ export default function Dashboard({
           {list.length === 0 ? (
             <div className="empty">No expenses {showAllMonth ? "this month" : "today"} yet.</div>
           ) : (
-            list.map((e) => {
-              const cat = e.category || (Number(e.amount) < 0 ? "refund" : "other");
-              const meta = CATEGORY_META[cat] || CATEGORY_META.other;
-              const isRefund = Number(e.amount) < 0;
-              return (
-                <div key={e.id} className={`it ${isRefund ? "in" : "out"}`}>
-                  <div className="ic" style={{ background: meta.bg, color: meta.color }} aria-hidden="true">
-                    {meta.icon}
-                  </div>
-                  <div className="text">
-                    <div className="d">{e.description || "Untitled"}</div>
-                    <div className="t">{e.date}</div>
-                  </div>
-                  <span className="v">{fmtNum(Math.abs(Number(e.amount)))}</span>
-                  <button className="x" aria-label="Remove" onClick={() => onRemoveDaily(e.id)}>
-                    <Trash2 size={15} strokeWidth={1.75} />
-                  </button>
-                </div>
-              );
-            })
+            <ul role="list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+              {list.map((e) => {
+                const isRefund = e.kind === "refund";
+                const cat = e.category || (isRefund ? "refund" : "other");
+                const meta = CATEGORY_META[cat] || CATEGORY_META.other;
+                return (
+                  <li key={e.id} className={`it ${isRefund ? "in" : "out"}`}>
+                    <div className="ic" style={{ background: meta.bg, color: meta.color }} aria-hidden="true">
+                      {meta.icon}
+                    </div>
+                    <div className="text">
+                      <div className="d">{e.description || "Untitled"}</div>
+                      <div className="t">{e.date}</div>
+                    </div>
+                    <span className="v">{fmtNum(Math.abs(Number(e.amount)))}</span>
+                    <button
+                      className="x"
+                      aria-label={`Delete ${e.description || (isRefund ? "refund" : "expense")}`}
+                      onClick={() => onRemoveDaily(e.id)}
+                    >
+                      <Trash2 size={15} strokeWidth={1.75} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </SwapFade>
       </div>

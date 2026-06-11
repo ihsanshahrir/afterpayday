@@ -1,21 +1,29 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   Settings as SettingsIcon,
-  X,
   LayoutDashboard,
   ListChecks,
   History,
   HelpCircle,
 } from "lucide-react";
 import { uid } from "./utils/id.js";
-import { todayISO, currentMonthKey, isInCurrentMonth, isBeforeCurrentMonth, isFixedPaidThisMonth, monthLabel } from "./utils/date.js";
+import { todayISO, currentMonthKey, isFixedPaidThisMonth, monthLabel } from "./utils/date.js";
 import { loadState, saveState } from "./state/storage.js";
+import {
+  fixedGrandTotal,
+  fixedUnpaidTotal,
+  fixedPaidForMonth,
+  installmentTotals,
+  dailyTotalForMonth,
+  buildMonthSnapshot,
+} from "./state/derive.js";
 import SplashScreen from "./components/SplashScreen.jsx";
 import OnboardingSlides, { ONBOARDING_KEY } from "./components/OnboardingSlides.jsx";
 import Dashboard from "./components/Dashboard.jsx";
 import Commitments from "./components/Commitments.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
 import HistorySheet from "./components/HistorySheet.jsx";
+import useFocusTrap from "./hooks/useFocusTrap.js";
 
 const CHIPS = [
   { id: "food",   label: "☕ Food" },
@@ -25,11 +33,16 @@ const CHIPS = [
   { id: "refund", label: "↺ Refund" },
 ];
 
-function AddSheet({ open, currency, onClose, onSave }) {
+function AddSheet({ open, currency, storageFull, onClose, onSave }) {
   const [amount, setAmount] = useState("");
   const [desc, setDesc] = useState("");
   const [cat, setCat] = useState("food");
   const amtRef = useRef(null);
+  const sheetRef = useRef(null);
+
+  // The sheet already focuses the amount input on its own schedule (timed to
+  // the slide-in), so the trap only contains Tab and handles Escape.
+  useFocusTrap(sheetRef, { active: open, onEscape: onClose, initialFocus: false });
 
   useEffect(() => {
     if (open) {
@@ -45,16 +58,15 @@ function AddSheet({ open, currency, onClose, onSave }) {
   const valid = Number.isFinite(a) && a > 0;
 
   const submit = () => {
-    if (!valid) return;
-    // A refund is money coming back in, stored as a negative amount so it
-    // lifts safe-to-spend and shows as an inbound row in the list.
-    onSave(cat === "refund" ? -a : a, desc.trim(), cat);
+    if (!valid || storageFull) return;
+    onSave(a, desc.trim(), cat);
   };
 
   return (
     <>
       <div className={`scrim${open ? " on" : ""}`} onClick={onClose} />
       <div
+        ref={sheetRef}
         className={`sheet${open ? " on" : ""}`}
         role="dialog"
         aria-modal="true"
@@ -95,7 +107,7 @@ function AddSheet({ open, currency, onClose, onSave }) {
         </div>
         <div className="sheet-actions">
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn-primary" disabled={!valid} onClick={submit}>
+          <button className="btn-primary" disabled={!valid || storageFull} onClick={submit}>
             {cat === "refund" ? "Save refund" : "Save expense"}
           </button>
         </div>
@@ -174,38 +186,10 @@ export default function App() {
       const nowMonth = currentMonthKey();
       if (!s.currentMonth || s.currentMonth === nowMonth) return;
 
-      const m = s.currentMonth;
-      const salary = s.settings.salary || 0;
       // Snapshot the month as actually spent — only count fixed expenses and
       // installments the user marked paid. Unpaid amounts roll forward as
       // overdue rather than retroactively reducing the closed month's balance.
-      const fixedTotal = s.fixedExpenses
-        .filter((e) => e.paidMonth === m)
-        .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-
-      let installments = 0;
-      s.debtGroups.forEach(g => {
-        g.installments.forEach(i => {
-          if (i.dueDate && i.dueDate.startsWith(m) && i.isPaid) {
-            installments += Number(i.amount || 0);
-          }
-        });
-      });
-
-      let dailySpent = 0;
-      s.dailyExpenses.forEach(e => {
-        if (e.date && e.date.startsWith(m)) dailySpent += Number(e.amount || 0);
-      });
-
-      const snapshot = {
-        id: uid(),
-        month: m,
-        salary,
-        fixedTotal,
-        installments,
-        dailySpent,
-        balance: salary - fixedTotal - installments - dailySpent,
-      };
+      const snapshot = { id: uid(), ...buildMonthSnapshot(s, s.currentMonth) };
 
       setState(prev => ({
         ...prev,
@@ -252,118 +236,59 @@ export default function App() {
 
   const currency = state.settings.currency || "RM";
 
-  // ---------- derived totals ----------
+  // ---------- derived totals (pure logic lives in state/derive.js) ----------
+  const monthKey = currentMonthKey();
+
   const fixedTotal = useMemo(
-    () => state.fixedExpenses
-      .filter((e) => !isFixedPaidThisMonth(e))
-      .reduce((s, e) => s + Number(e.amount || 0), 0),
+    () => fixedUnpaidTotal(state.fixedExpenses, monthKey),
+    [state.fixedExpenses, monthKey]
+  );
+
+  const fixedGrand = useMemo(
+    () => fixedGrandTotal(state.fixedExpenses),
     [state.fixedExpenses]
   );
 
-  const fixedGrandTotal = useMemo(
-    () => state.fixedExpenses.reduce((s, e) => s + Number(e.amount || 0), 0),
-    [state.fixedExpenses]
+  const instTotals = useMemo(
+    () => installmentTotals(state.debtGroups, monthKey),
+    [state.debtGroups, monthKey]
   );
-
-  const installmentsTotalThisMonth = useMemo(() => {
-    let total = 0;
-    state.debtGroups.forEach((g) => {
-      g.installments.forEach((i) => {
-        if (isInCurrentMonth(i.dueDate)) total += Number(i.amount || 0);
-      });
-    });
-    return total;
-  }, [state.debtGroups]);
-
-  const installmentsUnpaidThisMonth = useMemo(() => {
-    let total = 0;
-    state.debtGroups.forEach((g) => {
-      g.installments.forEach((i) => {
-        if (isInCurrentMonth(i.dueDate) && !i.isPaid) total += Number(i.amount || 0);
-      });
-    });
-    return total;
-  }, [state.debtGroups]);
-
-  // Unpaid installments whose due date is in a month before this one. They're
-  // still owed, so they must reduce safe-to-spend and be surfaced — otherwise
-  // overdue debt silently vanishes from every headline figure.
-  const installmentsOverdueUnpaid = useMemo(() => {
-    let total = 0;
-    state.debtGroups.forEach((g) => {
-      g.installments.forEach((i) => {
-        if (isBeforeCurrentMonth(i.dueDate) && !i.isPaid) total += Number(i.amount || 0);
-      });
-    });
-    return total;
-  }, [state.debtGroups]);
-
-  // Overdue installments that were caught up *this* month. The cash left the
-  // account now, so they must keep reducing this month's safe-to-spend —
-  // without this, marking an overdue installment paid would make safe-to-spend
-  // jump up by the amount just paid. They age out automatically next month
-  // because paidMonth no longer matches. (Mirrors how fixed expenses use
-  // paidMonth.) Installments paid before this feature lack paidMonth and are
-  // treated as already settled in a prior month.
-  const installmentsOverduePaidThisMonth = useMemo(() => {
-    const month = currentMonthKey();
-    let total = 0;
-    state.debtGroups.forEach((g) => {
-      g.installments.forEach((i) => {
-        if (isBeforeCurrentMonth(i.dueDate) && i.isPaid && i.paidMonth === month) {
-          total += Number(i.amount || 0);
-        }
-      });
-    });
-    return total;
-  }, [state.debtGroups]);
-
-  const fixedPaidThisMonth = useMemo(
-    () => state.fixedExpenses
-      .filter((e) => isFixedPaidThisMonth(e))
-      .reduce((s, e) => s + Number(e.amount || 0), 0),
-    [state.fixedExpenses]
-  );
-
-  const installmentsPaidThisMonth = useMemo(() => {
-    let total = 0;
-    state.debtGroups.forEach((g) => {
-      g.installments.forEach((i) => {
-        if (isInCurrentMonth(i.dueDate) && i.isPaid) total += Number(i.amount || 0);
-      });
-    });
-    return total;
-  }, [state.debtGroups]);
 
   const dailyThisMonth = useMemo(
-    () =>
-      state.dailyExpenses
-        .filter((e) => isInCurrentMonth(e.date))
-        .reduce((s, e) => s + Number(e.amount || 0), 0),
-    [state.dailyExpenses]
+    () => dailyTotalForMonth(state.dailyExpenses, monthKey),
+    [state.dailyExpenses, monthKey]
+  );
+
+  const fixedPaidThisMonth = useMemo(
+    () => fixedPaidForMonth(state.fixedExpenses, monthKey),
+    [state.fixedExpenses, monthKey]
   );
 
   // Overdue still owed (unpaid) plus overdue caught up this month both leave —
   // or will leave — this month's money, so both reduce safe-to-spend.
-  const installmentsOverdueOwed = installmentsOverdueUnpaid + installmentsOverduePaidThisMonth;
-
   const safeToSpend =
-    Number(state.settings.salary || 0) - fixedGrandTotal - installmentsTotalThisMonth - installmentsOverdueOwed - dailyThisMonth;
+    Number(state.settings.salary || 0) -
+    fixedGrand -
+    instTotals.dueThisMonth -
+    (instTotals.overdueUnpaid + instTotals.overduePaidThisMonth) -
+    dailyThisMonth;
 
   // "Spent" reflects money that has actually left the account: paid fixed bills,
   // paid installments, and daily expenses. Unpaid commitments still affect the
   // forward-looking `safeToSpend` but should not inflate the progress bar.
-  const spentThisMonth = fixedPaidThisMonth + installmentsPaidThisMonth + dailyThisMonth;
+  const spentThisMonth = fixedPaidThisMonth + instTotals.paidThisMonth + dailyThisMonth;
 
   // ---------- mutations ----------
   const updateSettings = (patch) =>
     setState((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
 
-  const addFixedExpense = (name, amount) =>
+  const addFixedExpense = (name, amount) => {
+    if (storageError) return;
     setState((s) => ({
       ...s,
       fixedExpenses: [...s.fixedExpenses, { id: uid(), name, amount: Number(amount), paidMonth: null }],
     }));
+  };
 
   const toggleFixedPaid = (id) =>
     setState((s) => ({
@@ -388,22 +313,35 @@ export default function App() {
     setState((s) => ({ ...s, fixedExpenses: s.fixedExpenses.filter((e) => e.id !== id) }));
   };
 
-  const addDailyExpense = (amount, description, category = "other") =>
+  const addDailyExpense = (amount, description, category = "other") => {
+    if (storageError) return;
+    // Amounts are always stored positive; `kind` records direction. A refund
+    // is money coming back in, so it lifts safe-to-spend.
     setState((s) => ({
       ...s,
       dailyExpenses: [
-        { id: uid(), amount: Number(amount), description, date: todayISO(), category },
+        {
+          id: uid(),
+          amount: Number(amount),
+          description,
+          date: todayISO(),
+          category,
+          kind: category === "refund" ? "refund" : "expense",
+        },
         ...s.dailyExpenses,
       ],
     }));
+  };
 
   const removeDailyExpense = (id) => {
     requestUndo("Expense deleted");
     setState((s) => ({ ...s, dailyExpenses: s.dailyExpenses.filter((e) => e.id !== id) }));
   };
 
-  const addDebtGroup = (group) =>
+  const addDebtGroup = (group) => {
+    if (storageError) return;
     setState((s) => ({ ...s, debtGroups: [...s.debtGroups, group] }));
+  };
 
   const removeDebtGroup = (id) => {
     requestUndo("Debt group deleted");
@@ -427,13 +365,15 @@ export default function App() {
       ),
     }));
 
-  const addInstallmentToGroup = (groupId, installment) =>
+  const addInstallmentToGroup = (groupId, installment) => {
+    if (storageError) return;
     setState((s) => ({
       ...s,
       debtGroups: s.debtGroups.map((g) =>
         g.id !== groupId ? g : { ...g, installments: [...g.installments, installment] }
       ),
     }));
+  };
 
   const editInstallment = (groupId, instId, patch) =>
     setState((s) => ({
@@ -530,10 +470,10 @@ export default function App() {
               currency={currency}
               salary={state.settings.salary}
               fixedTotal={fixedTotal}
-              fixedGrandTotal={fixedGrandTotal}
-              installmentsTotalThisMonth={installmentsTotalThisMonth}
-              installmentsUnpaidThisMonth={installmentsUnpaidThisMonth}
-              installmentsOverdueUnpaid={installmentsOverdueUnpaid}
+              fixedGrandTotal={fixedGrand}
+              installmentsTotalThisMonth={instTotals.dueThisMonth}
+              installmentsUnpaidThisMonth={instTotals.unpaidThisMonth}
+              installmentsOverdueUnpaid={instTotals.overdueUnpaid}
               spentThisMonth={spentThisMonth}
               safeToSpend={safeToSpend}
               dailyExpenses={state.dailyExpenses}
@@ -542,9 +482,10 @@ export default function App() {
           ) : (
             <Commitments
               currency={currency}
+              storageFull={storageError}
               fixedExpenses={state.fixedExpenses}
               fixedTotal={fixedTotal}
-              fixedGrandTotal={fixedGrandTotal}
+              fixedGrandTotal={fixedGrand}
               debtGroups={state.debtGroups}
               onAddFixed={addFixedExpense}
               onEditFixed={editFixedExpense}
@@ -562,6 +503,7 @@ export default function App() {
 
         {/* Floating tab bar */}
         <nav
+          aria-label="Primary"
           style={{
             position: "fixed",
             bottom: 0,
@@ -580,9 +522,20 @@ export default function App() {
               maxWidth: 420,
               marginBottom: "max(8px, env(safe-area-inset-bottom))",
             }}
+            onKeyDown={(e) => {
+              // Light roving enhancement: arrow keys move selection and focus
+              // between the two tabs.
+              if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+              const next = tab === "dashboard" ? "commitments" : "dashboard";
+              setTab(next);
+              e.currentTarget
+                .querySelector(next === "dashboard" ? "button:first-of-type" : "button:nth-of-type(2)")
+                ?.focus();
+            }}
           >
             <button
               className={tab === "dashboard" ? "active" : ""}
+              aria-current={tab === "dashboard" ? "page" : undefined}
               onClick={() => setTab("dashboard")}
             >
               <LayoutDashboard size={18} strokeWidth={1.75} />
@@ -590,6 +543,7 @@ export default function App() {
             </button>
             <button
               className={tab === "commitments" ? "active" : ""}
+              aria-current={tab === "commitments" ? "page" : undefined}
               onClick={() => setTab("commitments")}
             >
               <ListChecks size={18} strokeWidth={1.75} />
@@ -599,6 +553,8 @@ export default function App() {
               className="fab"
               onClick={() => setShowAddSheet(true)}
               aria-label="Add expense"
+              disabled={storageError}
+              aria-disabled={storageError}
             >
               ＋
             </button>
@@ -609,6 +565,7 @@ export default function App() {
         <AddSheet
           open={showAddSheet}
           currency={currency}
+          storageFull={storageError}
           onClose={() => setShowAddSheet(false)}
           onSave={(amount, desc, cat) => {
             addDailyExpense(amount, desc, cat);
@@ -655,14 +612,16 @@ export default function App() {
 
         {storageError && (
           <div className="fixed bottom-16 left-0 right-0 z-40 mx-auto max-w-md px-4">
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-red-800/60 bg-red-950/90 px-4 py-3 text-sm text-red-300 shadow-lg backdrop-blur">
-              <span>Storage full — changes may not be saved. Free up space to continue.</span>
+            <div
+              role="alert"
+              className="flex items-center justify-between gap-3 rounded-xl border border-red-800/60 bg-red-950/90 px-4 py-3 text-sm text-red-300 shadow-lg backdrop-blur"
+            >
+              <span>Storage full — adding new entries is paused. Export a backup or delete entries to continue.</span>
               <button
-                onClick={() => setStorageError(false)}
-                className="shrink-0 text-red-400 hover:text-red-200"
-                aria-label="Dismiss"
+                onClick={handleExport}
+                className="shrink-0 font-semibold text-red-200 hover:text-white"
               >
-                <X size={15} />
+                Export backup
               </button>
             </div>
           </div>

@@ -797,3 +797,22 @@ input { font: inherit; }
   font: 600 15px var(--font);
   box-shadow: 0 14px 28px -10px rgba(52,211,153,0.5), inset 0 1px 0 rgba(255,255,255,0.3);
 }
+
+/* ----- reduced motion -------------------------------------------- */
+/* Collapse and swap handle this above; this block covers the rest.
+   Transitions get a 1ms duration (rather than none) so anything that
+   waits on transitionend still fires. Looping/decorative animations
+   are simply disabled. */
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .sheet,
+  .progress .bar,
+  .dprogress > div,
+  .donut-ring .ring-fg,
+  .tabbar .fab,
+  .onboarding-dots .dot {
+    transition-duration: 1ms;
+  }
+  .live { animation: none; }
+  .check.on { animation: none; }
+}

@@ -10,6 +10,12 @@ export default function SplashScreen({ onDone }) {
   const [fadingBg, setFadingBg] = useState(false);
 
   useEffect(() => {
+    // Inline-style transitions can't be overridden by the reduced-motion CSS
+    // block, so skip the whole sequence here instead.
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      onDone();
+      return;
+    }
     const raf = requestAnimationFrame(() => setVisible(true));
     const t1 = setTimeout(() => setExiting(true), 800);
     const t2 = setTimeout(() => setFadingBg(true), 1150);
