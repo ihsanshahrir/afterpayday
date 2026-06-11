@@ -7,8 +7,16 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { uid } from "./utils/id.js";
-import { todayISO, currentMonthKey, isInCurrentMonth, isBeforeCurrentMonth, isFixedPaidThisMonth, monthLabel } from "./utils/date.js";
+import { todayISO, currentMonthKey, isFixedPaidThisMonth, monthLabel } from "./utils/date.js";
 import { loadState, saveState } from "./state/storage.js";
+import {
+  fixedGrandTotal,
+  fixedUnpaidTotal,
+  fixedPaidForMonth,
+  installmentTotals,
+  dailyTotalForMonth,
+  buildMonthSnapshot,
+} from "./state/derive.js";
 import SplashScreen from "./components/SplashScreen.jsx";
 import OnboardingSlides, { ONBOARDING_KEY } from "./components/OnboardingSlides.jsx";
 import Dashboard from "./components/Dashboard.jsx";
@@ -171,40 +179,10 @@ export default function App() {
       const nowMonth = currentMonthKey();
       if (!s.currentMonth || s.currentMonth === nowMonth) return;
 
-      const m = s.currentMonth;
-      const salary = s.settings.salary || 0;
       // Snapshot the month as actually spent — only count fixed expenses and
       // installments the user marked paid. Unpaid amounts roll forward as
       // overdue rather than retroactively reducing the closed month's balance.
-      const fixedTotal = s.fixedExpenses
-        .filter((e) => e.paidMonth === m)
-        .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-
-      let installments = 0;
-      s.debtGroups.forEach(g => {
-        g.installments.forEach(i => {
-          if (i.dueDate && i.dueDate.startsWith(m) && i.isPaid) {
-            installments += Number(i.amount || 0);
-          }
-        });
-      });
-
-      let dailySpent = 0;
-      s.dailyExpenses.forEach(e => {
-        if (e.date && e.date.startsWith(m)) {
-          dailySpent += e.kind === "refund" ? -Number(e.amount || 0) : Number(e.amount || 0);
-        }
-      });
-
-      const snapshot = {
-        id: uid(),
-        month: m,
-        salary,
-        fixedTotal,
-        installments,
-        dailySpent,
-        balance: salary - fixedTotal - installments - dailySpent,
-      };
+      const snapshot = { id: uid(), ...buildMonthSnapshot(s, s.currentMonth) };
 
       setState(prev => ({
         ...prev,
@@ -251,111 +229,47 @@ export default function App() {
 
   const currency = state.settings.currency || "RM";
 
-  // ---------- derived totals ----------
+  // ---------- derived totals (pure logic lives in state/derive.js) ----------
+  const monthKey = currentMonthKey();
+
   const fixedTotal = useMemo(
-    () => state.fixedExpenses
-      .filter((e) => !isFixedPaidThisMonth(e))
-      .reduce((s, e) => s + Number(e.amount || 0), 0),
+    () => fixedUnpaidTotal(state.fixedExpenses, monthKey),
+    [state.fixedExpenses, monthKey]
+  );
+
+  const fixedGrand = useMemo(
+    () => fixedGrandTotal(state.fixedExpenses),
     [state.fixedExpenses]
   );
 
-  const fixedGrandTotal = useMemo(
-    () => state.fixedExpenses.reduce((s, e) => s + Number(e.amount || 0), 0),
-    [state.fixedExpenses]
+  const instTotals = useMemo(
+    () => installmentTotals(state.debtGroups, monthKey),
+    [state.debtGroups, monthKey]
   );
-
-  const installmentsTotalThisMonth = useMemo(() => {
-    let total = 0;
-    state.debtGroups.forEach((g) => {
-      g.installments.forEach((i) => {
-        if (isInCurrentMonth(i.dueDate)) total += Number(i.amount || 0);
-      });
-    });
-    return total;
-  }, [state.debtGroups]);
-
-  const installmentsUnpaidThisMonth = useMemo(() => {
-    let total = 0;
-    state.debtGroups.forEach((g) => {
-      g.installments.forEach((i) => {
-        if (isInCurrentMonth(i.dueDate) && !i.isPaid) total += Number(i.amount || 0);
-      });
-    });
-    return total;
-  }, [state.debtGroups]);
-
-  // Unpaid installments whose due date is in a month before this one. They're
-  // still owed, so they must reduce safe-to-spend and be surfaced — otherwise
-  // overdue debt silently vanishes from every headline figure.
-  const installmentsOverdueUnpaid = useMemo(() => {
-    let total = 0;
-    state.debtGroups.forEach((g) => {
-      g.installments.forEach((i) => {
-        if (isBeforeCurrentMonth(i.dueDate) && !i.isPaid) total += Number(i.amount || 0);
-      });
-    });
-    return total;
-  }, [state.debtGroups]);
-
-  // Overdue installments that were caught up *this* month. The cash left the
-  // account now, so they must keep reducing this month's safe-to-spend —
-  // without this, marking an overdue installment paid would make safe-to-spend
-  // jump up by the amount just paid. They age out automatically next month
-  // because paidMonth no longer matches. (Mirrors how fixed expenses use
-  // paidMonth.) Installments paid before this feature lack paidMonth and are
-  // treated as already settled in a prior month.
-  const installmentsOverduePaidThisMonth = useMemo(() => {
-    const month = currentMonthKey();
-    let total = 0;
-    state.debtGroups.forEach((g) => {
-      g.installments.forEach((i) => {
-        if (isBeforeCurrentMonth(i.dueDate) && i.isPaid && i.paidMonth === month) {
-          total += Number(i.amount || 0);
-        }
-      });
-    });
-    return total;
-  }, [state.debtGroups]);
-
-  const fixedPaidThisMonth = useMemo(
-    () => state.fixedExpenses
-      .filter((e) => isFixedPaidThisMonth(e))
-      .reduce((s, e) => s + Number(e.amount || 0), 0),
-    [state.fixedExpenses]
-  );
-
-  const installmentsPaidThisMonth = useMemo(() => {
-    let total = 0;
-    state.debtGroups.forEach((g) => {
-      g.installments.forEach((i) => {
-        if (isInCurrentMonth(i.dueDate) && i.isPaid) total += Number(i.amount || 0);
-      });
-    });
-    return total;
-  }, [state.debtGroups]);
 
   const dailyThisMonth = useMemo(
-    () =>
-      state.dailyExpenses
-        .filter((e) => isInCurrentMonth(e.date))
-        .reduce(
-          (s, e) => s + (e.kind === "refund" ? -Number(e.amount || 0) : Number(e.amount || 0)),
-          0
-        ),
-    [state.dailyExpenses]
+    () => dailyTotalForMonth(state.dailyExpenses, monthKey),
+    [state.dailyExpenses, monthKey]
+  );
+
+  const fixedPaidThisMonth = useMemo(
+    () => fixedPaidForMonth(state.fixedExpenses, monthKey),
+    [state.fixedExpenses, monthKey]
   );
 
   // Overdue still owed (unpaid) plus overdue caught up this month both leave —
   // or will leave — this month's money, so both reduce safe-to-spend.
-  const installmentsOverdueOwed = installmentsOverdueUnpaid + installmentsOverduePaidThisMonth;
-
   const safeToSpend =
-    Number(state.settings.salary || 0) - fixedGrandTotal - installmentsTotalThisMonth - installmentsOverdueOwed - dailyThisMonth;
+    Number(state.settings.salary || 0) -
+    fixedGrand -
+    instTotals.dueThisMonth -
+    (instTotals.overdueUnpaid + instTotals.overduePaidThisMonth) -
+    dailyThisMonth;
 
   // "Spent" reflects money that has actually left the account: paid fixed bills,
   // paid installments, and daily expenses. Unpaid commitments still affect the
   // forward-looking `safeToSpend` but should not inflate the progress bar.
-  const spentThisMonth = fixedPaidThisMonth + installmentsPaidThisMonth + dailyThisMonth;
+  const spentThisMonth = fixedPaidThisMonth + instTotals.paidThisMonth + dailyThisMonth;
 
   // ---------- mutations ----------
   const updateSettings = (patch) =>
@@ -549,10 +463,10 @@ export default function App() {
               currency={currency}
               salary={state.settings.salary}
               fixedTotal={fixedTotal}
-              fixedGrandTotal={fixedGrandTotal}
-              installmentsTotalThisMonth={installmentsTotalThisMonth}
-              installmentsUnpaidThisMonth={installmentsUnpaidThisMonth}
-              installmentsOverdueUnpaid={installmentsOverdueUnpaid}
+              fixedGrandTotal={fixedGrand}
+              installmentsTotalThisMonth={instTotals.dueThisMonth}
+              installmentsUnpaidThisMonth={instTotals.unpaidThisMonth}
+              installmentsOverdueUnpaid={instTotals.overdueUnpaid}
               spentThisMonth={spentThisMonth}
               safeToSpend={safeToSpend}
               dailyExpenses={state.dailyExpenses}
@@ -564,7 +478,7 @@ export default function App() {
               storageFull={storageError}
               fixedExpenses={state.fixedExpenses}
               fixedTotal={fixedTotal}
-              fixedGrandTotal={fixedGrandTotal}
+              fixedGrandTotal={fixedGrand}
               debtGroups={state.debtGroups}
               onAddFixed={addFixedExpense}
               onEditFixed={editFixedExpense}
