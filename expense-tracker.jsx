@@ -412,7 +412,10 @@ export default function App() {
   }, [state.settings.salary, state.fixedExpenses.length, state.debtGroups.length, state.dailyExpenses.length]);
 
   return (
-    <>
+    // display:contents wrapper carries splash-active above BOTH the onboarding
+    // overlay and the main app, so the backdrop-filter suppression reaches the
+    // onboarding icon halo on the first-launch path too — without adding a box.
+    <div className={`contents${splashDone ? "" : " splash-active"}`}>
       {showOnboarding && <OnboardingSlides onDone={handleOnboardingDone} />}
       {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
 
@@ -627,6 +630,6 @@ export default function App() {
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }
