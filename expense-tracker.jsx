@@ -417,7 +417,7 @@ export default function App() {
       {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
 
       <div
-        className="antialiased overflow-x-hidden"
+        className={`antialiased overflow-x-hidden${splashDone ? "" : " splash-active"}`}
         style={{
           background: "var(--bg-base)",
           height: "100lvh",
