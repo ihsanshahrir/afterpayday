@@ -82,7 +82,8 @@ input { font: inherit; }
    which made the bottom tab bar flicker into the splash on launch. Suppressing
    the filter (no layout change) removes the only thing that can punch through;
    the blur returns the instant the splash unmounts, hidden behind its fade-out. */
-.splash-active .glass {
+.splash-active .glass,
+.splash-active .onboarding-icon-halo {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
