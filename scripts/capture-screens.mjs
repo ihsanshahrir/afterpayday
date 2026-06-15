@@ -1,10 +1,18 @@
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-const BASE_URL = 'http://localhost:5173/afterpayday/';
-const OUT = '/home/user/afterpayday/screenshots';
+const BASE_URL = process.env.APP_URL || 'http://localhost:5173/afterpayday/';
+const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'screenshots');
 mkdirSync(OUT, { recursive: true });
+
+// Optional override for environments where Playwright's bundled Chromium is not
+// available (e.g. CI containers with a pre-installed browser).
+// Set CHROMIUM_PATH to the absolute path of the chrome/chromium binary.
+const LAUNCH_OPTS = process.env.CHROMIUM_PATH
+  ? { headless: true, executablePath: process.env.CHROMIUM_PATH }
+  : { headless: true };
 
 const VP = { width: 390, height: 844 }; // iPhone 14 Pro
 
@@ -97,22 +105,19 @@ async function waitMs(p, ms) { await p.waitForTimeout(ms); }
 // 1. SPLASH SCREEN (very first frame)
 // ════════════════════════════════════════════════════════════════════════════
 {
-  const ctx = await (await chromium.launch({ executablePath: CHROME, headless: true })).newContext({ viewport: VP });
-  // Use a local browser just for splash to avoid variable hoisting
-  const b = await chromium.launch({ executablePath: CHROME, headless: true });
-  const ctx2 = await b.newContext({ viewport: VP });
-  const p = await ctx2.newPage();
+  const b = await chromium.launch(LAUNCH_OPTS);
+  const ctx = await b.newContext({ viewport: VP });
+  const p = await ctx.newPage();
   await p.addInitScript(() => localStorage.clear());
   await p.goto(BASE_URL, { waitUntil: 'commit' });
   await waitMs(p, 150);
   await p.screenshot({ path: `${OUT}/01-splash-screen.png` });
   console.log('✓ 01-splash-screen');
   await b.close();
-  await ctx.close();
   idx = 1;
 }
 
-browser = await chromium.launch({ executablePath: CHROME, headless: true });
+browser = await chromium.launch(LAUNCH_OPTS);
 
 // ════════════════════════════════════════════════════════════════════════════
 // 2–6. ONBOARDING SLIDES 1–5
