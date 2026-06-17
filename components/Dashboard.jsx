@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Eye, EyeOff } from "lucide-react";
 import { todayISO, isInCurrentMonth } from "../utils/date.js";
 import { fmtNum, fmtCompact } from "../utils/money.js";
 import { LOCALE } from "../utils/locale.js";
@@ -27,6 +27,9 @@ export default function Dashboard({
   onRemoveDaily,
 }) {
   const [showAllMonth, setShowAllMonth] = useState(false);
+  const [amountsHidden, setAmountsHidden] = useState(true);
+
+  const MASK = "••••";
 
   const today = todayISO();
   const todays = dailyExpenses.filter((e) => e.date === today);
@@ -49,15 +52,36 @@ export default function Dashboard({
         <div className="lbl">
           <span className="live" aria-hidden="true" />
           Safe to spend · live
+          <button
+            type="button"
+            className="eye"
+            aria-label={amountsHidden ? "Show amounts" : "Hide amounts"}
+            aria-pressed={!amountsHidden}
+            onClick={() => setAmountsHidden((v) => !v)}
+          >
+            {amountsHidden ? <EyeOff size={16} strokeWidth={1.75} /> : <Eye size={16} strokeWidth={1.75} />}
+          </button>
         </div>
         <div className={`num${isNegative ? " neg" : ""}`}>
           <span className="sym">{currency}</span>
-          {intPart}
-          <span className="c">.{centPart}</span>
+          {amountsHidden ? (
+            MASK
+          ) : (
+            <>
+              {intPart}
+              <span className="c">.{centPart}</span>
+            </>
+          )}
         </div>
         <div className="sub">
           {!hasIncome ? (
             "Set your monthly income to start tracking"
+          ) : amountsHidden ? (
+            isNegative ? (
+              <>{currency} {MASK} spent · over by <b>{currency} {MASK}</b></>
+            ) : (
+              <>{currency} {MASK} spent of <b>{currency} {MASK}</b> this month</>
+            )
           ) : isNegative ? (
             <>{currency} {fmtNum(spent)} spent · over by <b>{currency} {fmtNum(Math.abs(safeToSpend))}</b></>
           ) : (
@@ -71,7 +95,7 @@ export default function Dashboard({
           <div className="ticks">
             {[0, 0.25, 0.5, 0.75, 1].map((f) => {
               const v = total * f;
-              return <span key={f} className={v <= spent ? "reached" : ""}>{fmtCompact(v)}</span>;
+              return <span key={f} className={v <= spent ? "reached" : ""}>{amountsHidden ? MASK : fmtCompact(v)}</span>;
             })}
           </div>
         )}
