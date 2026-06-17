@@ -380,6 +380,8 @@ input { font: inherit; }
 .debt-card .top .name { flex: 1; font: 600 14px var(--font); color: var(--fg); }
 .debt-card .top .pm { font: 600 14px var(--font); color: var(--fg); font-variant-numeric: tabular-nums; }
 .debt-card .top .pm .of { color: var(--fg-3); font-weight: 500; }
+.debt-card .top .edit-btn { background: none; border: 0; color: var(--fg-4); padding: 4px; transition: color 150ms ease; }
+.debt-card .top .edit-btn:hover { color: var(--violet); }
 .debt-card .top .trash-btn { background: none; border: 0; color: var(--fg-4); padding: 4px; transition: color 150ms ease; }
 .debt-card .top .trash-btn:hover { color: var(--rose); }
 .debt-card .dprogress { height: 6px; border-radius: 9999px; background: rgba(255,255,255,0.08); overflow: hidden; }

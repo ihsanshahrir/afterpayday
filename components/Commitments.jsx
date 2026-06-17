@@ -14,6 +14,7 @@ export default function Commitments({
   onToggleFixed,
   onAddDebtGroup,
   onRemoveDebtGroup,
+  onEditDebtGroup,
   onToggleInstallment,
   onAddInstallment,
   onEditInstallment,
@@ -38,6 +39,7 @@ export default function Commitments({
         groups={debtGroups}
         onAddGroup={onAddDebtGroup}
         onRemoveGroup={onRemoveDebtGroup}
+        onEditGroup={onEditDebtGroup}
         onToggle={onToggleInstallment}
         onAddInstallment={onAddInstallment}
         onEditInstallment={onEditInstallment}

@@ -2,15 +2,17 @@ import { useState } from "react";
 import { Plus, Check, Trash2, Pencil } from "lucide-react";
 import Collapse from "../Collapse.jsx";
 import ManualInstallmentForm from "./ManualInstallmentForm.jsx";
+import EditDebtGroupForm from "./EditDebtGroupForm.jsx";
 import { uid } from "../../utils/id.js";
 import { isInCurrentMonth, isOverdue, fmtDate } from "../../utils/date.js";
 import { formatMoney } from "../../utils/money.js";
 
-export default function DebtGroupCard({ group, currency, onRemoveGroup, onToggle, onAddInstallment, onEditInstallment, onRemoveInstallment }) {
+export default function DebtGroupCard({ group, currency, onRemoveGroup, onEditGroup, onToggle, onAddInstallment, onEditInstallment, onRemoveInstallment }) {
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [addingInst, setAddingInst] = useState(false);
   const [editingInstId, setEditingInstId] = useState(null);
+  const [editingGroup, setEditingGroup] = useState(false);
 
   const totalCount = group.installments.length;
   const paidCount = group.installments.filter((i) => i.isPaid).length;
@@ -100,10 +102,25 @@ export default function DebtGroupCard({ group, currency, onRemoveGroup, onToggle
             <span className="of">/mo</span>
           </span>
         )}
+        <button className="edit-btn" onClick={() => setEditingGroup((v) => !v)} aria-label={`Edit ${group.name} group`}>
+          <Pencil size={14} strokeWidth={1.75} />
+        </button>
         <button className="trash-btn" onClick={onRemoveGroup} aria-label={`Delete ${group.name} group`}>
           <Trash2 size={14} strokeWidth={1.75} />
         </button>
       </div>
+
+      <Collapse open={editingGroup}>
+        <EditDebtGroupForm
+          currency={currency}
+          group={group}
+          onCancel={() => setEditingGroup(false)}
+          onSave={(patch) => {
+            onEditGroup(patch);
+            setEditingGroup(false);
+          }}
+        />
+      </Collapse>
 
       {totalCount > 0 && (
         <>
