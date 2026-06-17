@@ -10,7 +10,7 @@ export default function EditDebtGroupForm({ currency, group, onCancel, onSave })
   const [name, setName] = useState(group.name ?? "");
   const [error, setError] = useState(null);
 
-  const currentTotal = group.installments.reduce((s, i) => s + Number(i.amount || 0), 0);
+  const currentTotal = +group.installments.reduce((s, i) => s + Number(i.amount || 0), 0).toFixed(2);
   const firstDue = group.installments
     .map((i) => i.dueDate)
     .filter(Boolean)
