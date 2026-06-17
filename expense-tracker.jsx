@@ -348,6 +348,12 @@ export default function App() {
     setState((s) => ({ ...s, debtGroups: s.debtGroups.filter((g) => g.id !== id) }));
   };
 
+  const editDebtGroup = (groupId, patch) =>
+    setState((s) => ({
+      ...s,
+      debtGroups: s.debtGroups.map((g) => (g.id !== groupId ? g : { ...g, ...patch })),
+    }));
+
   const toggleInstallmentPaid = (groupId, instId) =>
     setState((s) => ({
       ...s,
@@ -496,6 +502,7 @@ export default function App() {
               onToggleFixed={toggleFixedPaid}
               onAddDebtGroup={addDebtGroup}
               onRemoveDebtGroup={removeDebtGroup}
+              onEditDebtGroup={editDebtGroup}
               onToggleInstallment={toggleInstallmentPaid}
               onAddInstallment={addInstallmentToGroup}
               onEditInstallment={editInstallment}

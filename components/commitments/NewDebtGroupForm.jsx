@@ -1,8 +1,9 @@
 import { useState } from "react";
 import DatePickerField from "./DatePickerField.jsx";
 import { uid } from "../../utils/id.js";
-import { daysInMonth, fmtMonthYear } from "../../utils/date.js";
+import { fmtMonthYear } from "../../utils/date.js";
 import { formatMoney, splitEvenly } from "../../utils/money.js";
+import { generateInstallments } from "../../utils/debt.js";
 
 export default function NewDebtGroupForm({ currency, onCancel, onCreate }) {
   const [mode, setMode] = useState("auto");
@@ -28,24 +29,7 @@ export default function NewDebtGroupForm({ currency, onCancel, onCreate }) {
       }
       // Split the total so the installments always sum back to it exactly —
       // the last one absorbs any rounding remainder.
-      const amounts = splitEvenly(t, n);
-      const [yy, mm, dd] = startDate.split("-").map(Number);
-      const installments = Array.from({ length: n }, (_, i) => {
-        const monthDate = new Date(yy, mm - 1 + i, 1);
-        const yyyy = monthDate.getFullYear();
-        const mIdx = monthDate.getMonth();
-        const mmStr = String(mIdx + 1).padStart(2, "0");
-        const maxD = daysInMonth(mIdx + 1, yyyy);
-        const day = Math.min(dd, maxD);
-        const ddStr = String(day).padStart(2, "0");
-        return {
-          id: uid(),
-          label: `Month ${i + 1}`,
-          amount: amounts[i],
-          dueDate: `${yyyy}-${mmStr}-${ddStr}`,
-          isPaid: false,
-        };
-      });
+      const installments = generateInstallments(t, n, startDate);
       onCreate({ id: uid(), name: name.trim(), installments });
     } else {
       onCreate({ id: uid(), name: name.trim(), installments: [] });
