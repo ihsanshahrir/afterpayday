@@ -126,6 +126,7 @@ export default function App() {
   const [splashDone, setSplashDone] = useState(!showSplash);
   const [state, setState] = useState(loadState);
   const [tab, setTab] = useState("dashboard");
+  const [amountsHidden, setAmountsHidden] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(ONBOARDING_KEY));
@@ -487,6 +488,8 @@ export default function App() {
               safeToSpend={safeToSpend}
               dailyExpenses={state.dailyExpenses}
               onRemoveDaily={removeDailyExpense}
+              amountsHidden={amountsHidden}
+              setAmountsHidden={setAmountsHidden}
             />
           ) : (
             <Commitments
@@ -507,6 +510,7 @@ export default function App() {
               onAddInstallment={addInstallmentToGroup}
               onEditInstallment={editInstallment}
               onRemoveInstallment={removeInstallment}
+              amountsHidden={amountsHidden}
             />
           )}
         </div>

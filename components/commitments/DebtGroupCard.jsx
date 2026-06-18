@@ -5,9 +5,9 @@ import ManualInstallmentForm from "./ManualInstallmentForm.jsx";
 import EditDebtGroupForm from "./EditDebtGroupForm.jsx";
 import { uid } from "../../utils/id.js";
 import { isInCurrentMonth, isOverdue, fmtDate } from "../../utils/date.js";
-import { formatMoney } from "../../utils/money.js";
+import { maskMoney } from "../../utils/money.js";
 
-export default function DebtGroupCard({ group, currency, onRemoveGroup, onEditGroup, onToggle, onAddInstallment, onEditInstallment, onRemoveInstallment }) {
+export default function DebtGroupCard({ group, currency, onRemoveGroup, onEditGroup, onToggle, onAddInstallment, onEditInstallment, onRemoveInstallment, amountsHidden }) {
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [addingInst, setAddingInst] = useState(false);
@@ -80,7 +80,7 @@ export default function DebtGroupCard({ group, currency, onRemoveGroup, onEditGr
           <div className="id">{fmtDate(i.dueDate)}</div>
         </div>
         {st && <span className={`pill ${st.cls}`}>{st.txt}</span>}
-        <span className="ia">{formatMoney(i.amount, currency)}</span>
+        <span className="ia">{maskMoney(i.amount, currency, amountsHidden)}</span>
         <button className="ix" onClick={() => setEditingInstId(i.id)} aria-label={`Edit ${i.label}`}>
           <Pencil size={12} strokeWidth={1.75} />
         </button>
@@ -98,7 +98,7 @@ export default function DebtGroupCard({ group, currency, onRemoveGroup, onEditGr
         <span className="name">{group.name}</span>
         {thisMonthAmt > 0 && (
           <span className="pm">
-            {formatMoney(thisMonthAmt, currency)}
+            {maskMoney(thisMonthAmt, currency, amountsHidden)}
             <span className="of">/mo</span>
           </span>
         )}
@@ -128,7 +128,7 @@ export default function DebtGroupCard({ group, currency, onRemoveGroup, onEditGr
             <div style={{ width: `${progress * 100}%` }} />
           </div>
           <div className="meta">
-            <span>{paidCount}/{totalCount} · {formatMoney(remaining, currency)} left</span>
+            <span>{paidCount}/{totalCount} · {maskMoney(remaining, currency, amountsHidden)} left</span>
             {nextDue ? (
               <span className="due-chip">Next: {fmtDate(nextDue.dueDate)}</span>
             ) : (
@@ -187,7 +187,7 @@ export default function DebtGroupCard({ group, currency, onRemoveGroup, onEditGr
               <Plus size={12} strokeWidth={1.75} /> Add installment
             </button>
             <span className="total-lbl">
-              Total <span>{formatMoney(total, currency)}</span>
+              Total <span>{maskMoney(total, currency, amountsHidden)}</span>
             </span>
           </div>
           <Collapse open={addingInst}>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Trash2, Eye, EyeOff } from "lucide-react";
 import { todayISO, isInCurrentMonth } from "../utils/date.js";
-import { fmtNum, fmtCompact } from "../utils/money.js";
+import { fmtNum, fmtCompact, MASK } from "../utils/money.js";
 import { LOCALE } from "../utils/locale.js";
 import SwapFade from "./SwapFade.jsx";
 
@@ -25,11 +25,10 @@ export default function Dashboard({
   safeToSpend,
   dailyExpenses,
   onRemoveDaily,
+  amountsHidden,
+  setAmountsHidden,
 }) {
   const [showAllMonth, setShowAllMonth] = useState(false);
-  const [amountsHidden, setAmountsHidden] = useState(true);
-
-  const MASK = "••••";
 
   const today = todayISO();
   const todays = dailyExpenses.filter((e) => e.date === today);
