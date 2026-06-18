@@ -5,6 +5,11 @@ export const fmtNum = (n) =>
 
 export const formatMoney = (n, currency = "RM") => `${currency} ${fmtNum(n)}`;
 
+export const MASK = "••••";
+
+export const maskMoney = (n, currency = "RM", hidden = false) =>
+  hidden ? `${currency} ${MASK}` : formatMoney(n, currency);
+
 export const fmtCompact = (n) =>
   new Intl.NumberFormat(LOCALE, { notation: "compact", maximumFractionDigits: 1 }).format(
     Number.isFinite(n) ? n : 0

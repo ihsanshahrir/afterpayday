@@ -1,9 +1,9 @@
 import RingProgress from "../RingProgress.jsx";
 import StatPager from "../StatPager.jsx";
 import { isInCurrentMonth, isBeforeCurrentMonth } from "../../utils/date.js";
-import { formatMoney } from "../../utils/money.js";
+import { maskMoney } from "../../utils/money.js";
 
-export default function DebtSummary({ currency, groups }) {
+export default function DebtSummary({ currency, groups, amountsHidden }) {
   const all = groups.flatMap((g) => g.installments);
   const totalCount = all.length;
   if (totalCount === 0) return null;
@@ -43,22 +43,22 @@ export default function DebtSummary({ currency, groups }) {
           <div key="due" className="ds-stat hero solo">
             <span className="k">Due this month</span>
             <span className={`v ${allCaughtUp ? "paid" : "due"}`}>
-              {formatMoney(thisMonthDue, currency)}
+              {maskMoney(thisMonthDue, currency, amountsHidden)}
             </span>
             {overdue > 0 && (
-              <span className="overdue-note">{formatMoney(overdue, currency)} overdue</span>
+              <span className="overdue-note">{maskMoney(overdue, currency, amountsHidden)} overdue</span>
             )}
           </div>,
           <div key="breakdown" className="pager-row">
             <div className="ds-stat">
               <span className="k">Total paid this month</span>
               <span className={`v ${thisMonthPaid > 0 ? "paid" : ""}`}>
-                {formatMoney(thisMonthPaid, currency)}
+                {maskMoney(thisMonthPaid, currency, amountsHidden)}
               </span>
             </div>
             <div className="ds-stat">
               <span className="k">Overall remaining</span>
-              <span className="v">{formatMoney(remaining, currency)}</span>
+              <span className="v">{maskMoney(remaining, currency, amountsHidden)}</span>
             </div>
           </div>,
         ]}

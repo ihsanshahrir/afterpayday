@@ -4,9 +4,9 @@ import RingProgress from "../RingProgress.jsx";
 import Collapse from "../Collapse.jsx";
 import StatPager from "../StatPager.jsx";
 import { isFixedPaidThisMonth } from "../../utils/date.js";
-import { formatMoney } from "../../utils/money.js";
+import { maskMoney } from "../../utils/money.js";
 
-export default function FixedExpensesSection({ currency, storageFull, items, total, unpaidTotal, onAdd, onEdit, onRemove, onToggle }) {
+export default function FixedExpensesSection({ currency, storageFull, items, total, unpaidTotal, onAdd, onEdit, onRemove, onToggle, amountsHidden }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
@@ -94,7 +94,7 @@ export default function FixedExpensesSection({ currency, storageFull, items, tot
         </button>
         <span className="name">{e.name}</span>
         {isPaid && <span className="tag">PAID</span>}
-        <span className="amt">{formatMoney(e.amount, currency)}</span>
+        <span className="amt">{maskMoney(e.amount, currency, amountsHidden)}</span>
         <button
           className="row-x"
           onClick={() => startEdit(e)}
@@ -204,13 +204,13 @@ export default function FixedExpensesSection({ currency, storageFull, items, tot
                 <div key="due" className="fc-stat hero solo">
                   <span className="k">Due this month</span>
                   <span className={`v ${allPaid ? "paid" : "due"}`}>
-                    {formatMoney(unpaidTotal, currency)}
+                    {maskMoney(unpaidTotal, currency, amountsHidden)}
                   </span>
                 </div>,
                 <div key="paid" className="fc-stat hero solo">
                   <span className="k">Total paid this month</span>
                   <span className={`v ${total - unpaidTotal > 0 ? "paid" : ""}`}>
-                    {formatMoney(Math.max(0, total - unpaidTotal), currency)}
+                    {maskMoney(Math.max(0, total - unpaidTotal), currency, amountsHidden)}
                   </span>
                 </div>,
               ]}

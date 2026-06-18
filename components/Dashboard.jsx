@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Trash2, Eye, EyeOff } from "lucide-react";
 import { todayISO, isInCurrentMonth } from "../utils/date.js";
-import { fmtNum, fmtCompact } from "../utils/money.js";
+import { fmtNum, fmtCompact, MASK } from "../utils/money.js";
 import { LOCALE } from "../utils/locale.js";
 import SwapFade from "./SwapFade.jsx";
 
@@ -25,11 +25,10 @@ export default function Dashboard({
   safeToSpend,
   dailyExpenses,
   onRemoveDaily,
+  amountsHidden,
+  setAmountsHidden,
 }) {
   const [showAllMonth, setShowAllMonth] = useState(false);
-  const [amountsHidden, setAmountsHidden] = useState(true);
-
-  const MASK = "••••";
 
   const today = todayISO();
   const todays = dailyExpenses.filter((e) => e.date === today);
@@ -110,13 +109,13 @@ export default function Dashboard({
           </div>
           <div className="pv">
             <span className="pre">{currency}</span>
-            {fmtNum(fixedGrandTotal)}
+            {amountsHidden ? MASK : fmtNum(fixedGrandTotal)}
           </div>
           <div className="ps">
             {fixedTotal === 0 && fixedGrandTotal > 0
               ? "All paid"
               : fixedTotal > 0
-                ? <><b>{currency} {fmtNum(fixedTotal)}</b> unpaid</>
+                ? <><b>{currency} {amountsHidden ? MASK : fmtNum(fixedTotal)}</b> unpaid</>
                 : "None set"}
           </div>
         </div>
@@ -127,17 +126,17 @@ export default function Dashboard({
           </div>
           <div className="pv">
             <span className="pre">{currency}</span>
-            {fmtNum(installmentsTotalThisMonth)}
+            {amountsHidden ? MASK : fmtNum(installmentsTotalThisMonth)}
           </div>
           <div className="ps">
             {installmentsUnpaidThisMonth === 0 && installmentsTotalThisMonth > 0
               ? "All paid"
               : installmentsUnpaidThisMonth > 0
-                ? <><b>{currency} {fmtNum(installmentsUnpaidThisMonth)}</b> unpaid</>
+                ? <><b>{currency} {amountsHidden ? MASK : fmtNum(installmentsUnpaidThisMonth)}</b> unpaid</>
                 : "None this month"}
             {installmentsOverdueUnpaid > 0 && (
               <span className="overdue-note">
-                {currency} {fmtNum(installmentsOverdueUnpaid)} overdue
+                {currency} {amountsHidden ? MASK : fmtNum(installmentsOverdueUnpaid)} overdue
               </span>
             )}
           </div>
@@ -170,7 +169,7 @@ export default function Dashboard({
                       <div className="d">{e.description || "Untitled"}</div>
                       <div className="t">{e.date}</div>
                     </div>
-                    <span className="v">{fmtNum(Math.abs(Number(e.amount)))}</span>
+                    <span className="v">{amountsHidden ? MASK : fmtNum(Math.abs(Number(e.amount)))}</span>
                     <button
                       className="x"
                       aria-label={`Delete ${e.description || (isRefund ? "refund" : "expense")}`}

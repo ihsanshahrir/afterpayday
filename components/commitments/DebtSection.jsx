@@ -5,7 +5,7 @@ import DebtSummary from "./DebtSummary.jsx";
 import DebtGroupCard from "./DebtGroupCard.jsx";
 import NewDebtGroupForm from "./NewDebtGroupForm.jsx";
 
-export default function DebtSection({ currency, storageFull, groups, onAddGroup, onRemoveGroup, onEditGroup, onToggle, onAddInstallment, onEditInstallment, onRemoveInstallment }) {
+export default function DebtSection({ currency, storageFull, groups, onAddGroup, onRemoveGroup, onEditGroup, onToggle, onAddInstallment, onEditInstallment, onRemoveInstallment, amountsHidden }) {
   const [creating, setCreating] = useState(false);
 
   return (
@@ -48,12 +48,13 @@ export default function DebtSection({ currency, storageFull, groups, onAddGroup,
         )
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {groups.length > 0 && <DebtSummary currency={currency} groups={groups} />}
+          {groups.length > 0 && <DebtSummary currency={currency} groups={groups} amountsHidden={amountsHidden} />}
           {groups.map((g) => (
             <DebtGroupCard
               key={g.id}
               group={g}
               currency={currency}
+              amountsHidden={amountsHidden}
               onRemoveGroup={() => onRemoveGroup(g.id)}
               onEditGroup={(patch) => onEditGroup(g.id, patch)}
               onToggle={(instId) => onToggle(g.id, instId)}

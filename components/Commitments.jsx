@@ -19,6 +19,7 @@ export default function Commitments({
   onAddInstallment,
   onEditInstallment,
   onRemoveInstallment,
+  amountsHidden,
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, paddingBottom: 8 }}>
@@ -32,6 +33,7 @@ export default function Commitments({
         onEdit={onEditFixed}
         onRemove={onRemoveFixed}
         onToggle={onToggleFixed}
+        amountsHidden={amountsHidden}
       />
       <DebtSection
         currency={currency}
@@ -44,6 +46,7 @@ export default function Commitments({
         onAddInstallment={onAddInstallment}
         onEditInstallment={onEditInstallment}
         onRemoveInstallment={onRemoveInstallment}
+        amountsHidden={amountsHidden}
       />
     </div>
   );
