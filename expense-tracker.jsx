@@ -50,6 +50,11 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
   const amtRef = useRef(null);
   const fileRef = useRef(null);
   const sheetRef = useRef(null);
+  // Incremented whenever the sheet closes or the user saves manually.
+  // onPickFile captures the value at scan start and bails out if it changes
+  // before the async work finishes, preventing stale OCR results from writing
+  // into the form after a close/save.
+  const scanTokenRef = useRef(0);
 
   // The sheet already focuses the amount input on its own schedule (timed to
   // the slide-in), so the trap only contains Tab and handles Escape.
@@ -59,6 +64,7 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
     if (open) {
       setTimeout(() => amtRef.current && amtRef.current.focus(), 280);
     } else {
+      scanTokenRef.current += 1; // invalidate any in-flight scan callback
       setAmount("");
       setDesc("");
       setCat("food");
@@ -74,6 +80,7 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
 
   const submit = () => {
     if (!valid || storageFull) return;
+    scanTokenRef.current += 1; // invalidate any in-flight scan callback
     onSave(a, desc.trim(), cat, date);
   };
 
@@ -88,10 +95,12 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
     setScanError(null);
     setScanProgress(0);
     setScanning(true);
+    const token = scanTokenRef.current;
     try {
       const canvas = await downscaleToCanvas(file);
       const text = await recognizeReceipt(canvas, setScanProgress);
       const parsed = parseReceiptText(text);
+      if (scanTokenRef.current !== token) return; // sheet closed or saved while scanning
       const got = parsed.amount != null || parsed.description || parsed.date;
       if (parsed.amount != null) setAmount(String(parsed.amount));
       if (parsed.description) setDesc(parsed.description);
@@ -99,10 +108,11 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
       if (got) setCat(parsed.category);
       if (!got) setScanError("Couldn't read it — enter the details manually.");
     } catch (err) {
+      if (scanTokenRef.current !== token) return; // ignore errors from cancelled scans
       console.error("Receipt scan failed", err);
       setScanError("Scan failed. The first scan needs a connection; after that it works offline.");
     } finally {
-      setScanning(false);
+      if (scanTokenRef.current === token) setScanning(false);
     }
   };
 
