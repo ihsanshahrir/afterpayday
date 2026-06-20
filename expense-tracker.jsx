@@ -363,11 +363,15 @@ export default function App() {
           ? g
           : {
               ...g,
-              installments: g.installments.map((i) =>
-                i.id === instId
-                  ? { ...i, isPaid: !i.isPaid, paidMonth: i.isPaid ? null : currentMonthKey() }
-                  : i
-              ),
+              installments: g.installments.map((i) => {
+                if (i.id !== instId) return i;
+                if (i.isPaid) return { ...i, isPaid: false, paidMonth: null };
+                // Back-dated: stamp with own due month so historical backfill
+                // doesn't reduce the current month's safe-to-spend.
+                const dueMth = typeof i.dueDate === "string" ? i.dueDate.slice(0, 7) : null;
+                const paidMonth = dueMth && dueMth < currentMonthKey() ? dueMth : currentMonthKey();
+                return { ...i, isPaid: true, paidMonth };
+              }),
             }
       ),
     }));
