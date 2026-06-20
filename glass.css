@@ -608,6 +608,27 @@ input { font: inherit; }
 }
 .btn-primary:disabled { opacity: 0.4; box-shadow: none; cursor: not-allowed; }
 
+/* ----- receipt scan (Add sheet) --------------------------------- */
+.scan-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.scan-btn {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  padding: 7px 13px; border-radius: 9999px;
+  background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.4);
+  color: var(--emerald); font: 600 12px var(--font);
+  transition: background 150ms ease, border-color 150ms ease, opacity 150ms ease;
+}
+.scan-btn:hover { background: rgba(52,211,153,0.2); }
+.scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.scan-status { margin-bottom: 14px; font: 500 12px var(--font); color: var(--fg-3); }
+.scan-status.err { color: #fca5a5; }
+.spin { animation: scan-spin 0.9s linear infinite; }
+@keyframes scan-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+.field-label {
+  font: 500 11px var(--font); letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--fg-3); margin: 16px 0 8px;
+}
+
 /* ----- form inputs inside glass cards ---------------------------- */
 .glass-input {
   width: 100%;

@@ -48,6 +48,22 @@ No backend, no database, no authentication.
        localStorage (versioned schema)
 ```
 
+### Receipt scanning (`utils/ocr.js`, `utils/receiptParse.js`)
+
+The Add sheet can pre-fill an expense from a photo of a receipt. The pipeline is
+fully on-device: `downscaleToCanvas` (`utils/image.js`) shrinks and grayscales
+the photo, `recognizeReceipt` runs OCR, and `parseReceiptText` turns the raw
+text into `{ amount, description, category, date }` which seeds the form fields.
+Every field stays editable, and anything the parser can't recover is just left
+for manual entry — scanning never blocks the normal flow. The image is never
+stored; only the values the user confirms are saved via `addDailyExpense`.
+
+OCR uses **Tesseract.js**, dynamically imported on first scan so it stays out of
+the initial bundle. Its engine (worker + wasm core + `eng.traineddata.gz`) is
+self-hosted under `public/tesseract/` rather than fetched from a CDN, so nothing
+leaves the device. `scripts/copy-tesseract.mjs` (run via `predev`/`prebuild`)
+copies the worker/core out of `node_modules`; the language model is committed.
+
 ### State shape
 
 ```js
@@ -246,6 +262,7 @@ The nav's explicit `minHeight` prevents layout shift when iOS recalculates the v
 
 - `registerType: 'autoUpdate'` — Workbox checks for new SW on every navigation; old clients update silently within minutes.
 - Precaches all built JS/CSS/HTML/PNG/SVG/WOFF2.
+- The OCR engine under `public/tesseract/` is excluded from precache (`globIgnores`) and instead served `CacheFirst` at runtime, so the ~13 MB of wasm/model is fetched lazily on the first scan and then available offline — without bloating the initial install.
 - No runtime caching of API calls (there are none).
 
 ### Icons
@@ -278,6 +295,16 @@ If the effect depended on `state`, it would re-run on every mutation, with an in
 ### Why a class-based ErrorBoundary?
 
 React hooks cannot catch render errors. There is no `useErrorBoundary` in stable React. This is the one place the class API is still required.
+
+### Why on-device OCR (not a cloud vision API)?
+
+The app's promise is "no backend, nothing leaves your device." A cloud vision
+API would read receipts more accurately, but it needs a key (which a static
+GitHub Pages build can't hold safely) and would send the image to a server.
+Tesseract.js keeps scanning local, free, and offline at the cost of lower
+accuracy on faded/cluttered receipts — acceptable because every extracted field
+is editable before saving. The ~13 MB engine is runtime-cached (not precached,
+see below) so it never weighs down the initial install.
 
 ### Testing & linting
 

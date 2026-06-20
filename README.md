@@ -16,6 +16,7 @@ AfterPayday takes your monthly salary, subtracts your fixed bills and debt insta
 - **Fixed expenses** — recurring bills you mark paid each month (rent, utilities, subscriptions)
 - **Installment debt** — debt groups with individual installments, due dates, and overdue tracking
 - **Daily spending** — quick-add expenses by category: Food, Fuel, Shop, Other, Refund
+- **Scan receipts** — snap or upload a photo and the amount, merchant, category, and date are read on-device (no upload, works offline) and pre-filled for you to confirm
 - **Month rollover** — auto-archives the month when the date changes; unpaid items become overdue
 - **Undo** — 5-second undo window after any deletion
 - **Export / Import** — full JSON backup and restore
