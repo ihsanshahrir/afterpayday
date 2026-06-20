@@ -5,9 +5,15 @@ import {
   ListChecks,
   History,
   HelpCircle,
+  Camera,
+  Loader2,
 } from "lucide-react";
 import { uid } from "./utils/id.js";
-import { todayISO, currentMonthKey, isFixedPaidThisMonth, monthLabel } from "./utils/date.js";
+import { todayISO, currentMonthKey, isFixedPaidThisMonth, monthLabel, fmtDate } from "./utils/date.js";
+import DatePickerField from "./components/commitments/DatePickerField.jsx";
+import { downscaleToCanvas } from "./utils/image.js";
+import { recognizeReceipt } from "./utils/ocr.js";
+import { parseReceiptText } from "./utils/receiptParse.js";
 import { loadState, saveState } from "./state/storage.js";
 import {
   fixedGrandTotal,
@@ -37,8 +43,18 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
   const [amount, setAmount] = useState("");
   const [desc, setDesc] = useState("");
   const [cat, setCat] = useState("food");
+  const [date, setDate] = useState(todayISO);
+  const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanError, setScanError] = useState(null);
   const amtRef = useRef(null);
+  const fileRef = useRef(null);
   const sheetRef = useRef(null);
+  // Incremented whenever the sheet closes or the user saves manually.
+  // onPickFile captures the value at scan start and bails out if it changes
+  // before the async work finishes, preventing stale OCR results from writing
+  // into the form after a close/save.
+  const scanTokenRef = useRef(0);
 
   // The sheet already focuses the amount input on its own schedule (timed to
   // the slide-in), so the trap only contains Tab and handles Escape.
@@ -48,9 +64,14 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
     if (open) {
       setTimeout(() => amtRef.current && amtRef.current.focus(), 280);
     } else {
+      scanTokenRef.current += 1; // invalidate any in-flight scan callback
       setAmount("");
       setDesc("");
       setCat("food");
+      setDate(todayISO());
+      setScanning(false);
+      setScanProgress(0);
+      setScanError(null);
     }
   }, [open]);
 
@@ -59,8 +80,43 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
 
   const submit = () => {
     if (!valid || storageFull) return;
-    onSave(a, desc.trim(), cat);
+    scanTokenRef.current += 1; // invalidate any in-flight scan callback
+    onSave(a, desc.trim(), cat, date);
   };
+
+  // Scan a photo/upload of a receipt and pre-fill whatever we can read. OCR runs
+  // entirely on-device (see utils/ocr.js); the image is never stored. Fields the
+  // parser can't recover are left for the user to type — scanning never blocks
+  // manual entry.
+  const onPickFile = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ""; // allow re-picking the same file later
+    if (!file) return;
+    setScanError(null);
+    setScanProgress(0);
+    setScanning(true);
+    const token = scanTokenRef.current;
+    try {
+      const canvas = await downscaleToCanvas(file);
+      const text = await recognizeReceipt(canvas, setScanProgress);
+      const parsed = parseReceiptText(text);
+      if (scanTokenRef.current !== token) return; // sheet closed or saved while scanning
+      const got = parsed.amount != null || parsed.description || parsed.date;
+      if (parsed.amount != null) setAmount(String(parsed.amount));
+      if (parsed.description) setDesc(parsed.description);
+      if (parsed.date) setDate(parsed.date);
+      if (got) setCat(parsed.category);
+      if (!got) setScanError("Couldn't read it — enter the details manually.");
+    } catch (err) {
+      if (scanTokenRef.current !== token) return; // ignore errors from cancelled scans
+      console.error("Receipt scan failed", err);
+      setScanError("Scan failed. The first scan needs a connection; after that it works offline.");
+    } finally {
+      if (scanTokenRef.current === token) setScanning(false);
+    }
+  };
+
+  const titleDate = date === todayISO() ? "today" : fmtDate(date);
 
   return (
     <>
@@ -73,7 +129,38 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
         aria-labelledby="sheet-title"
       >
         <div className="grab" />
-        <div className="stitle" id="sheet-title">Add to <b>today</b></div>
+        <div className="scan-row">
+          <div className="stitle" id="sheet-title" style={{ marginBottom: 0 }}>
+            Add to <b>{titleDate}</b>
+          </div>
+          <button
+            type="button"
+            className="scan-btn"
+            onClick={() => fileRef.current && fileRef.current.click()}
+            disabled={scanning || storageFull}
+            aria-label="Scan a receipt with your camera"
+          >
+            {scanning
+              ? <Loader2 size={15} strokeWidth={2} className="spin" />
+              : <Camera size={15} strokeWidth={1.75} />}
+            <span>{scanning ? "Scanning" : "Scan"}</span>
+          </button>
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={onPickFile}
+          style={{ display: "none" }}
+        />
+        {(scanning || scanError) && (
+          <div className={`scan-status${scanError ? " err" : ""}`} role="status">
+            {scanning
+              ? `Reading receipt${scanProgress > 0 ? ` · ${Math.round(scanProgress * 100)}%` : "…"}`
+              : scanError}
+          </div>
+        )}
         <div className="amount-input">
           <span className="sym" aria-hidden="true">{currency}</span>
           <input
@@ -105,6 +192,8 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
             </button>
           ))}
         </div>
+        <div className="field-label">Date</div>
+        <DatePickerField value={date} onChange={setDate} />
         <div className="sheet-actions">
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
           <button className="btn-primary" disabled={!valid || storageFull} onClick={submit}>
@@ -314,10 +403,13 @@ export default function App() {
     setState((s) => ({ ...s, fixedExpenses: s.fixedExpenses.filter((e) => e.id !== id) }));
   };
 
-  const addDailyExpense = (amount, description, category = "other") => {
+  const addDailyExpense = (amount, description, category = "other", date = todayISO()) => {
     if (storageError) return;
     // Amounts are always stored positive; `kind` records direction. A refund
-    // is money coming back in, so it lifts safe-to-spend.
+    // is money coming back in, so it lifts safe-to-spend. `date` defaults to
+    // today but can be back-dated (e.g. a scanned receipt); guard against a
+    // malformed value so the entry survives storage's sanitizer.
+    const entryDate = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayISO();
     setState((s) => ({
       ...s,
       dailyExpenses: [
@@ -325,7 +417,7 @@ export default function App() {
           id: uid(),
           amount: Number(amount),
           description,
-          date: todayISO(),
+          date: entryDate,
           category,
           kind: category === "refund" ? "refund" : "expense",
         },
@@ -585,8 +677,8 @@ export default function App() {
           currency={currency}
           storageFull={storageError}
           onClose={() => setShowAddSheet(false)}
-          onSave={(amount, desc, cat) => {
-            addDailyExpense(amount, desc, cat);
+          onSave={(amount, desc, cat, date) => {
+            addDailyExpense(amount, desc, cat, date);
             setShowAddSheet(false);
           }}
         />
