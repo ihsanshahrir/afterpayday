@@ -6,10 +6,11 @@ import { daysInMonth } from "./date.js";
 
 // ---------- money ----------
 
-// A price token: 1+ leading digits, optional thousands groups, and a 2-digit
-// decimal. The trailing lookaheads stop us from biting into a longer number or
-// a date (e.g. the "31.12" in "31.12.2024").
-const PRICE_RE = /\d{1,3}(?:[.,]?\d{3})*[.,]\d{2}(?!\d)(?![.,/-]\d)/g;
+// A price token: digits with an optional consistent thousands-separator block,
+// followed by a 2-digit decimal. Two explicit alternatives (thousands present /
+// absent) with required separators keep the pattern linear — the original
+// optional separator inside a * repeat was vulnerable to ReDoS on long inputs.
+const PRICE_RE = /(?:\d{1,3}(?:[.,]\d{3})+|\d+)[.,]\d{2}(?!\d)(?![.,/-]\d)/g;
 
 // Normalise a raw price string ("1,234.56", "1.234,56", "12,50", "45000.00")
 // into a Number. The last separator followed by 1-2 digits is the decimal
