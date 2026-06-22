@@ -1,0 +1,5 @@
+# Local-only secrets for `wrangler dev`. Copy this file to worker/.dev.vars
+# (which is gitignored) and paste your real key. NEVER commit the real value.
+#
+# Get a free key from https://build.nvidia.com (the model catalog → "Get API Key").
+NVIDIA_API_KEY=nvapi-REPLACE_ME
