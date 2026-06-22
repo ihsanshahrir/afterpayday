@@ -1,0 +1,26 @@
+name = "afterpayday-receipt-proxy"
+main = "index.js"
+compatibility_date = "2025-01-01"
+
+# Public origin of the app — ONLY this origin may call the proxy.
+# Set this to your deployed site's origin (scheme + host, no path), e.g.
+#   https://yourname.github.io
+# Leave it as localhost for local development against `npm run dev`.
+[vars]
+ALLOWED_ORIGIN = "http://localhost:5173"
+
+# --- Secret: NVIDIA_API_KEY -------------------------------------------------
+# DO NOT put the key here. Set it as an encrypted secret instead:
+#   wrangler secret put NVIDIA_API_KEY
+# For local `wrangler dev`, put it in worker/.dev.vars (gitignored).
+
+# --- MANDATORY: per-IP rate limiting -----------------------------------------
+# Rate limiting prevents abuse and credit burn. Create two KV namespaces (one
+# for production, one for preview):
+#   wrangler kv namespace create RATE_KV
+#   wrangler kv namespace create RATE_KV --preview
+# Then uncomment and fill in the IDs below.
+[[kv_namespaces]]
+binding = "RATE_KV"
+id = "REPLACE_WITH_PRODUCTION_ID"
+preview_id = "REPLACE_WITH_PREVIEW_ID"

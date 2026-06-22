@@ -14,6 +14,7 @@ import DatePickerField from "./components/commitments/DatePickerField.jsx";
 import { downscaleToCanvas } from "./utils/image.js";
 import { recognizeReceipt } from "./utils/ocr.js";
 import { parseReceiptText } from "./utils/receiptParse.js";
+import { SCAN_PROXY_URL, smartScanReceipt } from "./utils/aiScan.js";
 import { loadState, saveState } from "./state/storage.js";
 import {
   fixedGrandTotal,
@@ -39,6 +40,19 @@ const CHIPS = [
   { id: "refund", label: "↺ Refund" },
 ];
 
+// Whether the AI proxy is configured for this build. When false, Smart Scan is
+// hidden entirely and scanning stays 100% on-device (Tesseract).
+const SMART_SCAN_AVAILABLE = Boolean(SCAN_PROXY_URL);
+const SMART_SCAN_PREF_KEY = "afterpayday:smartScan";
+
+const readSmartScanPref = () => {
+  try {
+    return localStorage.getItem(SMART_SCAN_PREF_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
 function AddSheet({ open, currency, storageFull, onClose, onSave }) {
   const [amount, setAmount] = useState("");
   const [desc, setDesc] = useState("");
@@ -47,6 +61,9 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
   const [scanning, setScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanError, setScanError] = useState(null);
+  // Opt-in: use the AI proxy ("Smart Scan") instead of on-device OCR. Persisted
+  // so the choice sticks across sessions. Only meaningful when configured.
+  const [smartScan, setSmartScan] = useState(readSmartScanPref);
   const amtRef = useRef(null);
   const fileRef = useRef(null);
   const sheetRef = useRef(null);
@@ -84,10 +101,23 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
     onSave(a, desc.trim(), cat, date);
   };
 
-  // Scan a photo/upload of a receipt and pre-fill whatever we can read. OCR runs
-  // entirely on-device (see utils/ocr.js); the image is never stored. Fields the
-  // parser can't recover are left for the user to type — scanning never blocks
-  // manual entry.
+  const toggleSmartScan = useCallback(() => {
+    setSmartScan((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(SMART_SCAN_PREF_KEY, next ? "1" : "0");
+      } catch { /* private mode / quota — pref just won't persist */ }
+      return next;
+    });
+  }, []);
+
+  // Scan a photo/upload of a receipt and pre-fill whatever we can read. By
+  // default OCR runs entirely on-device (see utils/ocr.js) and the image never
+  // leaves the device. With Smart Scan opted in (and online), the image is sent
+  // to our proxy for an AI read instead (see utils/aiScan.js); the AI result is
+  // validated/clamped before it touches the form, and any AI failure falls back
+  // to the on-device engine. Fields the parser can't recover are left for the
+  // user to type — scanning never blocks manual entry.
   const onPickFile = async (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = ""; // allow re-picking the same file later
@@ -96,10 +126,24 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
     setScanProgress(0);
     setScanning(true);
     const token = scanTokenRef.current;
+    const useAI = smartScan && SMART_SCAN_AVAILABLE && navigator.onLine;
     try {
       const canvas = await downscaleToCanvas(file);
-      const text = await recognizeReceipt(canvas, setScanProgress);
-      const parsed = parseReceiptText(text);
+      let parsed;
+      if (useAI) {
+        try {
+          parsed = await smartScanReceipt(canvas);
+        } catch (aiErr) {
+          // Proxy down, offline mid-scan, or rate-limited — fall back to the
+          // on-device engine so the user still gets a result.
+          console.warn("Smart Scan failed; falling back to on-device OCR", aiErr);
+          const text = await recognizeReceipt(canvas, setScanProgress);
+          parsed = parseReceiptText(text);
+        }
+      } else {
+        const text = await recognizeReceipt(canvas, setScanProgress);
+        parsed = parseReceiptText(text);
+      }
       if (scanTokenRef.current !== token) return; // sheet closed or saved while scanning
       const got = parsed.amount != null || parsed.description || parsed.date;
       if (parsed.amount != null) setAmount(String(parsed.amount));
@@ -154,6 +198,22 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
           onChange={onPickFile}
           style={{ display: "none" }}
         />
+        {SMART_SCAN_AVAILABLE && (
+          <label className="smart-scan-toggle">
+            <input
+              type="checkbox"
+              checked={smartScan}
+              onChange={toggleSmartScan}
+              disabled={scanning}
+            />
+            <span>Smart Scan (AI)</span>
+          </label>
+        )}
+        {SMART_SCAN_AVAILABLE && smartScan && (
+          <div className="smart-scan-note">
+            Sends the photo to our AI service to read it — more accurate, needs a connection.
+          </div>
+        )}
         {(scanning || scanError) && (
           <div className={`scan-status${scanError ? " err" : ""}`} role="status">
             {scanning

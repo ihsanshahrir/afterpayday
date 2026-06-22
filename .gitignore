@@ -7,6 +7,11 @@ coverage
 .claude
 *.local
 
+# Secrets — Smart Scan proxy. .env*.local is covered by *.local above; the
+# Worker's local secret file (worker/.dev.vars) is not, so ignore it explicitly.
+.dev.vars
+worker/.dev.vars
+
 # Tesseract engine assets are copied from node_modules by scripts/copy-tesseract.mjs
 # (regenerated per install). The language model is committed, so keep that one.
 public/tesseract/worker.min.js

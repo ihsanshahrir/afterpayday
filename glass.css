@@ -621,6 +621,13 @@ input { font: inherit; }
 .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .scan-status { margin-bottom: 14px; font: 500 12px var(--font); color: var(--fg-3); }
 .scan-status.err { color: #fca5a5; }
+.smart-scan-toggle {
+  display: inline-flex; align-items: center; gap: 7px; margin-bottom: 10px;
+  font: 500 12px var(--font); color: var(--fg-3); cursor: pointer; user-select: none;
+}
+.smart-scan-toggle input { accent-color: var(--emerald); width: 15px; height: 15px; }
+.smart-scan-toggle input:disabled { cursor: not-allowed; }
+.smart-scan-note { margin-bottom: 14px; font: 500 11px var(--font); color: var(--fg-3); opacity: 0.8; line-height: 1.4; }
 .spin { animation: scan-spin 0.9s linear infinite; }
 @keyframes scan-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
