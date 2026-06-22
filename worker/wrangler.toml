@@ -14,9 +14,13 @@ ALLOWED_ORIGIN = "http://localhost:5173"
 #   wrangler secret put NVIDIA_API_KEY
 # For local `wrangler dev`, put it in worker/.dev.vars (gitignored).
 
-# --- Optional: per-IP rate limiting -----------------------------------------
-# Create a KV namespace, then uncomment and paste its id to enable rate limiting:
+# --- MANDATORY: per-IP rate limiting -----------------------------------------
+# Rate limiting prevents abuse and credit burn. Create two KV namespaces (one
+# for production, one for preview):
 #   wrangler kv namespace create RATE_KV
-# [[kv_namespaces]]
-# binding = "RATE_KV"
-# id = "<your-kv-namespace-id>"
+#   wrangler kv namespace create RATE_KV --preview
+# Then uncomment and fill in the IDs below.
+[[kv_namespaces]]
+binding = "RATE_KV"
+id = "REPLACE_WITH_PRODUCTION_ID"
+preview_id = "REPLACE_WITH_PREVIEW_ID"

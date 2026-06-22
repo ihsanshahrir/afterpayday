@@ -17,8 +17,12 @@ const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const MODEL = "meta/llama-3.2-90b-vision-instruct";
 
 const MAX_BODY_BYTES = 1_500_000; // ~1.5 MB; a downscaled JPEG is well under this
-const RATE_LIMIT = 20; // requests per window per IP (only enforced if RATE_KV bound)
+const RATE_LIMIT = 20; // requests per window per IP
 const RATE_WINDOW_S = 60;
+
+// MANDATORY: Rate limiting prevents abuse (credit burn). env.RATE_KV must be
+// bound in wrangler.toml. Without it, the Worker will reject all requests.
+// See worker/README.md for setup instructions.
 
 const PROMPT = [
   "You are a receipt parser. Read the receipt in the image and return ONLY a JSON",
@@ -76,7 +80,11 @@ function sniffImage(dataUrl) {
 }
 
 async function rateLimited(env, ip) {
-  if (!env.RATE_KV || !ip) return false; // not configured → skip (bind RATE_KV in prod)
+  // Rate limiting is MANDATORY to prevent abuse/credit burn.
+  if (!env.RATE_KV) {
+    throw new Error("RATE_KV (KV namespace for rate limiting) is not configured");
+  }
+  if (!ip) return false; // can't rate limit without IP; allow it (trust CF-Connecting-IP)
   const key = `rl:${ip}`;
   const count = Number(await env.RATE_KV.get(key)) || 0;
   if (count >= RATE_LIMIT) return true;
@@ -119,8 +127,14 @@ export default {
     }
 
     const ip = request.headers.get("CF-Connecting-IP") || "";
-    if (await rateLimited(env, ip)) {
-      return json({ error: "rate_limited" }, 429, cors);
+    try {
+      if (await rateLimited(env, ip)) {
+        return json({ error: "rate_limited" }, 429, cors);
+      }
+    } catch (err) {
+      // Rate limiting is mandatory; misconfiguration is a server error.
+      console.error("Rate limiting failed:", err.message);
+      return json({ error: "rate_limit_misconfigured" }, 500, cors);
     }
 
     // Body-size cap (cheap pre-check; the data URL is also bounded below).
@@ -185,6 +199,14 @@ export default {
     }
 
     const content = data?.choices?.[0]?.message?.content;
+
+    // Reject if the model didn't return actual completion content (e.g., 202
+    // pending, malformed response, or API error masquerading as 200). This
+    // forces the client to skip the (empty) result and fall back to Tesseract.
+    if (!content || typeof content !== "string" || !content.trim()) {
+      return json({ error: "no_completion_content" }, 502, cors);
+    }
+
     const parsed = extractJson(content);
 
     // Return the raw extracted fields; the client's clampScanResult is the

@@ -26,11 +26,13 @@ Browser ──POST {image}──▶ this Worker ──Bearer key──▶ NVIDIA
 3. **Set the allowed origin** in `wrangler.toml` (`ALLOWED_ORIGIN`) to your
    deployed site's origin, e.g. `https://yourname.github.io`.
 
-4. *(Recommended)* **Enable rate limiting**: create a KV namespace and uncomment
-   the `[[kv_namespaces]]` block in `wrangler.toml`:
+4. **MANDATORY: Enable rate limiting** (prevents abuse and credit burn):
    ```bash
-   wrangler kv namespace create RATE_KV
+   wrangler kv namespace create RATE_KV      # creates a KV store
+   wrangler kv namespace create RATE_KV --preview  # also for preview
    ```
+   Then uncomment the `[[kv_namespaces]]` block in `wrangler.toml` and paste
+   both namespace IDs (one for production, one for preview).
 
 5. **Deploy**:
    ```bash
