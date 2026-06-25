@@ -5,13 +5,17 @@ import Collapse from "./Collapse";
 import { importState } from "../state/storage.js";
 import { SHEET_ANIM_MS } from "../utils/ui.js";
 import { CURRENCIES } from "../utils/currencies.js";
+import { DEFAULT_CATEGORIES, CATEGORY_COLORS } from "../utils/categories.js";
 import useFocusTrap from "../hooks/useFocusTrap.js";
 
-export default function SettingsSheet({ settings, onSave, onExport, onImport }) {
+export default function SettingsSheet({ settings, onSave, onExport, onExportCSV, onImport }) {
   const [isOpen, setIsOpen] = useState(false);
   const [salary, setSalary] = useState(String(settings.salary || ""));
   const [currency, setCurrency] = useState(settings.currency || "RM");
   const [currencyOpen, setCurrencyOpen] = useState(false);
+  const [cats, setCats] = useState(() => (Array.isArray(settings.categories) ? settings.categories : []));
+  const [newCatLabel, setNewCatLabel] = useState("");
+  const [newCatColor, setNewCatColor] = useState(0);
   const [importError, setImportError] = useState(null);
   const fileInputRef = useRef(null);
   const sheetRef = useRef(null);
@@ -39,8 +43,21 @@ export default function SettingsSheet({ settings, onSave, onExport, onImport }) 
     close(() => onSave({
       salary: nextSalary,
       currency: currency.trim() || settings.currency || "RM",
+      categories: cats,
     }));
   };
+
+  const addCat = () => {
+    const label = newCatLabel.trim();
+    if (!label) return;
+    const palette = CATEGORY_COLORS[newCatColor % CATEGORY_COLORS.length];
+    const icon = /^\p{Extended_Pictographic}/u.test(label) ? [...label][0] : "•";
+    const id = `c-${Math.random().toString(36).slice(2, 8)}`;
+    setCats((cs) => [...cs, { id, label: label.slice(0, 24), icon, color: palette.color, bg: palette.bg }]);
+    setNewCatLabel("");
+  };
+
+  const removeCat = (id) => setCats((cs) => cs.filter((c) => c.id !== id));
 
   const handleImportFile = (e) => {
     const file = e.target.files?.[0];
@@ -140,6 +157,54 @@ export default function SettingsSheet({ settings, onSave, onExport, onImport }) 
         </div>
 
         <div className="field-block" style={{ marginTop: 24 }}>
+          <div className="label">Categories</div>
+          <div className="cat-manager">
+            {DEFAULT_CATEGORIES.map((c) => (
+              <span key={c.id} className="cat-pill" style={{ background: c.bg, color: c.color }}>
+                <span aria-hidden="true">{c.icon}</span> {c.label}
+              </span>
+            ))}
+            {cats.map((c) => (
+              <span key={c.id} className="cat-pill custom" style={{ background: c.bg, color: c.color }}>
+                <span aria-hidden="true">{c.icon}</span> {c.label}
+                <button type="button" onClick={() => removeCat(c.id)} aria-label={`Remove ${c.label}`}>
+                  <X size={11} strokeWidth={2.5} />
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="cat-add">
+            <div className="cat-colors" role="group" aria-label="Category colour">
+              {CATEGORY_COLORS.map((p, i) => (
+                <button
+                  key={p.color}
+                  type="button"
+                  className={`cat-swatch${newCatColor === i ? " on" : ""}`}
+                  style={{ background: p.color }}
+                  aria-label={`Colour ${i + 1}`}
+                  aria-pressed={newCatColor === i}
+                  onClick={() => setNewCatColor(i)}
+                />
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <input
+                className="glass-input"
+                style={{ flex: 1 }}
+                value={newCatLabel}
+                onChange={(e) => setNewCatLabel(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addCat()}
+                placeholder="New category (e.g. 🛒 Groceries)"
+                aria-label="New category name"
+              />
+              <button type="button" className="glass-btn-secondary" onClick={addCat} disabled={!newCatLabel.trim()}>
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="field-block" style={{ marginTop: 24 }}>
           <div className="label">Backup</div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
@@ -166,6 +231,16 @@ export default function SettingsSheet({ settings, onSave, onExport, onImport }) 
               onChange={handleImportFile}
             />
           </div>
+          {onExportCSV && (
+            <button
+              type="button"
+              className="glass-btn-secondary"
+              style={{ width: "100%", marginTop: 8 }}
+              onClick={onExportCSV}
+            >
+              Export spending (CSV)
+            </button>
+          )}
           {importError && (
             <div
               role="alert"

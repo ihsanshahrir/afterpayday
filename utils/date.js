@@ -45,6 +45,31 @@ export const fmtDate = (iso) => {
 export const fmtMonthYear = (year, month1) =>
   localDate(year, month1).toLocaleDateString(LOCALE, { month: "short", year: "numeric" });
 
+// Yesterday in local time as YYYY-MM-DD. Built from local Date parts (not
+// string math) so it stays correct across month/year boundaries and DST.
+const yesterdayISO = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+};
+
+// Friendly day label for list rows: "Today" / "Yesterday" / else the full date.
+export const fmtRelativeDay = (iso) => {
+  if (!iso) return "";
+  if (iso === todayISO()) return "Today";
+  if (iso === yesterdayISO()) return "Yesterday";
+  return fmtDate(iso);
+};
+
+// Locale-aware "14:32" / "2:32 PM" from an epoch-ms timestamp. Returns "" when
+// the timestamp is missing (back-dated / pre-v3 rows carry no createdAt).
+export const fmtTime = (ts) => {
+  if (!Number.isFinite(ts)) return "";
+  return new Date(ts).toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" });
+};
+
 // Lexicographic compare is safe for ISO dates; due-today is not overdue.
 export const isOverdue = (iso) => Boolean(iso) && iso < todayISO();
 

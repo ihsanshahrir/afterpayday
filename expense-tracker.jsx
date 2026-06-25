@@ -7,10 +7,16 @@ import {
   HelpCircle,
   Camera,
   Loader2,
+  ChevronDown,
+  Plus,
 } from "lucide-react";
 import { uid } from "./utils/id.js";
 import { todayISO, currentMonthKey, isFixedPaidThisMonth, monthLabel, fmtDate } from "./utils/date.js";
+import { fmtNum } from "./utils/money.js";
+import { mergeCategories, PAYMENT_METHODS, CATEGORY_COLORS } from "./utils/categories.js";
+import { toDailyCSV } from "./utils/csv.js";
 import DatePickerField from "./components/commitments/DatePickerField.jsx";
+import Collapse from "./components/Collapse.jsx";
 import { downscaleToCanvas } from "./utils/image.js";
 import { recognizeReceipt } from "./utils/ocr.js";
 import { parseReceiptText } from "./utils/receiptParse.js";
@@ -22,6 +28,7 @@ import {
   fixedPaidForMonth,
   installmentTotals,
   dailyTotalForMonth,
+  recentDailySuggestions,
   buildMonthSnapshot,
 } from "./state/derive.js";
 import SplashScreen from "./components/SplashScreen.jsx";
@@ -31,14 +38,6 @@ import Commitments from "./components/Commitments.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
 import HistorySheet from "./components/HistorySheet.jsx";
 import useFocusTrap from "./hooks/useFocusTrap.js";
-
-const CHIPS = [
-  { id: "food",   label: "☕ Food" },
-  { id: "fuel",   label: "⛽ Fuel" },
-  { id: "shop",   label: "🛍 Shop" },
-  { id: "other",  label: "• Other" },
-  { id: "refund", label: "↺ Refund" },
-];
 
 // Whether the AI proxy is configured for this build. When false, Smart Scan is
 // hidden entirely and scanning stays 100% on-device (Tesseract).
@@ -53,11 +52,40 @@ const readSmartScanPref = () => {
   }
 };
 
-function AddSheet({ open, currency, storageFull, onClose, onSave }) {
+// Split a comma-separated tag string into a clean, de-duped array.
+const parseTags = (str) => {
+  const out = [];
+  for (const t of String(str).split(",")) {
+    const s = t.trim();
+    if (s && !out.includes(s)) out.push(s);
+  }
+  return out;
+};
+
+function AddSheet({
+  open,
+  editing,
+  currency,
+  storageFull,
+  categories,
+  suggestions = [],
+  onAddCategory,
+  onClose,
+  onSave,
+}) {
+  const isEdit = Boolean(editing);
   const [amount, setAmount] = useState("");
   const [desc, setDesc] = useState("");
   const [cat, setCat] = useState("food");
+  const [kind, setKind] = useState("expense");
   const [date, setDate] = useState(todayISO);
+  const [merchant, setMerchant] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [tags, setTags] = useState("");
+  const [note, setNote] = useState("");
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [addingCat, setAddingCat] = useState(false);
+  const [newCat, setNewCat] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanError, setScanError] = useState(null);
@@ -73,32 +101,116 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
   // into the form after a close/save.
   const scanTokenRef = useRef(0);
 
+  const allCats = useMemo(() => mergeCategories(categories), [categories]);
+
   // The sheet already focuses the amount input on its own schedule (timed to
   // the slide-in), so the trap only contains Tab and handles Escape.
   useFocusTrap(sheetRef, { active: open, onEscape: onClose, initialFocus: false });
 
+  // Seed the form when the sheet opens: from the row being edited, or fresh
+  // defaults for a new add. Fields are intentionally NOT cleared on close so
+  // they don't visibly empty during the slide-out animation — the next open
+  // re-seeds. Closing only invalidates any in-flight scan callback.
   useEffect(() => {
-    if (open) {
-      setTimeout(() => amtRef.current && amtRef.current.focus(), 280);
+    if (!open) {
+      scanTokenRef.current += 1;
+      return undefined;
+    }
+    if (editing) {
+      setAmount(String(editing.amount ?? ""));
+      setDesc(editing.description || "");
+      setCat(editing.category || "food");
+      setKind(editing.kind === "refund" ? "refund" : "expense");
+      setDate(editing.date || todayISO());
+      setMerchant(editing.merchant || "");
+      setPaymentMethod(editing.paymentMethod || "");
+      setTags(Array.isArray(editing.tags) ? editing.tags.join(", ") : "");
+      setNote(editing.note || "");
+      setDetailsOpen(
+        Boolean(
+          editing.merchant ||
+            editing.paymentMethod ||
+            (editing.tags && editing.tags.length) ||
+            editing.note ||
+            (editing.date && editing.date !== todayISO())
+        )
+      );
     } else {
-      scanTokenRef.current += 1; // invalidate any in-flight scan callback
       setAmount("");
       setDesc("");
       setCat("food");
+      setKind("expense");
       setDate(todayISO());
-      setScanning(false);
-      setScanProgress(0);
-      setScanError(null);
+      setMerchant("");
+      setPaymentMethod("");
+      setTags("");
+      setNote("");
+      setDetailsOpen(false);
     }
-  }, [open]);
+    setAddingCat(false);
+    setNewCat("");
+    setScanning(false);
+    setScanProgress(0);
+    setScanError(null);
+    const t = setTimeout(() => amtRef.current && amtRef.current.focus(), 280);
+    return () => clearTimeout(t);
+  }, [open, editing]);
 
   const a = parseFloat(amount);
   const valid = Number.isFinite(a) && a > 0;
 
-  const submit = () => {
+  const submit = (addAnother = false) => {
     if (!valid || storageFull) return;
     scanTokenRef.current += 1; // invalidate any in-flight scan callback
-    onSave(a, desc.trim(), cat, date);
+    onSave(
+      {
+        amount: a,
+        description: desc.trim(),
+        category: cat,
+        date,
+        kind,
+        merchant: merchant.trim() || undefined,
+        paymentMethod: paymentMethod || undefined,
+        tags: parseTags(tags),
+        note: note.trim() || undefined,
+      },
+      editing?.id,
+      addAnother
+    );
+    if (addAnother && !isEdit) {
+      // Rapid logging: keep date/category/direction/payment, clear the rest.
+      setAmount("");
+      setDesc("");
+      setMerchant("");
+      setTags("");
+      setNote("");
+      setScanError(null);
+      setTimeout(() => amtRef.current && amtRef.current.focus(), 0);
+    }
+  };
+
+  const applySuggestion = (s) => {
+    setDesc(s.description);
+    setCat(s.category);
+    amtRef.current && amtRef.current.focus();
+  };
+
+  const confirmAddCat = () => {
+    const label = newCat.trim();
+    if (!label) return;
+    const palette = CATEGORY_COLORS[allCats.length % CATEGORY_COLORS.length];
+    const icon = /^\p{Extended_Pictographic}/u.test(label) ? [...label][0] : "•";
+    const category = {
+      id: `c-${Math.random().toString(36).slice(2, 8)}`,
+      label: label.slice(0, 24),
+      icon,
+      color: palette.color,
+      bg: palette.bg,
+    };
+    onAddCategory?.(category);
+    setCat(category.id);
+    setNewCat("");
+    setAddingCat(false);
   };
 
   const toggleSmartScan = useCallback(() => {
@@ -161,6 +273,10 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
   };
 
   const titleDate = date === todayISO() ? "today" : fmtDate(date);
+  const amountSuffix = valid ? ` · ${currency} ${fmtNum(a)}` : "";
+  const primaryLabel = isEdit
+    ? `Save changes${amountSuffix}`
+    : `${kind === "refund" ? "Save refund" : "Save expense"}${amountSuffix}`;
 
   return (
     <>
@@ -175,7 +291,7 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
         <div className="grab" />
         <div className="scan-row">
           <div className="stitle" id="sheet-title" style={{ marginBottom: 0 }}>
-            Add to <b>{titleDate}</b>
+            {isEdit ? "Edit entry" : <>Add to <b>{titleDate}</b></>}
           </div>
           <button
             type="button"
@@ -221,6 +337,27 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
               : scanError}
           </div>
         )}
+
+        {/* Direction: expense vs refund (source of truth for `kind`) */}
+        <div className="seg" role="group" aria-label="Direction">
+          <button
+            type="button"
+            className={kind === "expense" ? "on" : ""}
+            aria-pressed={kind === "expense"}
+            onClick={() => setKind("expense")}
+          >
+            Expense
+          </button>
+          <button
+            type="button"
+            className={kind === "refund" ? "on" : ""}
+            aria-pressed={kind === "refund"}
+            onClick={() => setKind("refund")}
+          >
+            Refund
+          </button>
+        </div>
+
         <div className="amount-input">
           <span className="sym" aria-hidden="true">{currency}</span>
           <input
@@ -235,31 +372,143 @@ function AddSheet({ open, currency, storageFull, onClose, onSave }) {
         </div>
         <input
           className="desc-input"
-          placeholder="What did you spend on?"
-          aria-label="Expense description"
+          placeholder={kind === "refund" ? "What was refunded?" : "What did you spend on?"}
+          aria-label="Description"
           value={desc}
           onChange={(e) => setDesc(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
         />
+        {!isEdit && suggestions.length > 0 && (
+          <div className="suggestions" aria-label="Recent">
+            {suggestions.map((s) => (
+              <button
+                key={s.description}
+                type="button"
+                className="sugg"
+                onClick={() => applySuggestion(s)}
+              >
+                {s.description}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="chips">
-          {CHIPS.map((c) => (
+          {allCats.map((c) => (
             <button
               key={c.id}
+              type="button"
               className={cat === c.id ? "on" : ""}
               onClick={() => setCat(c.id)}
             >
-              {c.label}
+              <span aria-hidden="true">{c.icon}</span> {c.label}
             </button>
           ))}
-        </div>
-        <div className="field-label">Date</div>
-        <DatePickerField value={date} onChange={setDate} />
-        <div className="sheet-actions">
-          <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn-primary" disabled={!valid || storageFull} onClick={submit}>
-            {cat === "refund" ? "Save refund" : "Save expense"}
+          <button
+            type="button"
+            className="chip-add"
+            aria-label="Add category"
+            aria-expanded={addingCat}
+            onClick={() => setAddingCat((v) => !v)}
+          >
+            <Plus size={13} strokeWidth={2.25} />
           </button>
         </div>
+        {addingCat && (
+          <div className="cat-add-row">
+            <input
+              autoFocus
+              value={newCat}
+              onChange={(e) => setNewCat(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && confirmAddCat()}
+              placeholder="New category (e.g. 🛒 Groceries)"
+              aria-label="New category name"
+            />
+            <button type="button" className="btn-mini" onClick={confirmAddCat} disabled={!newCat.trim()}>
+              Add
+            </button>
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="more-toggle"
+          aria-expanded={detailsOpen}
+          onClick={() => setDetailsOpen((v) => !v)}
+        >
+          <ChevronDown size={15} strokeWidth={2} className={detailsOpen ? "rot" : ""} />
+          {detailsOpen ? "Fewer details" : "More details"}
+        </button>
+        <Collapse open={detailsOpen}>
+          <div className="more-details">
+            <div className="field-label">Date</div>
+            <DatePickerField value={date} onChange={setDate} />
+
+            <div className="field-label">Payment method</div>
+            <div className="seg seg-wrap">
+              <button
+                type="button"
+                className={!paymentMethod ? "on" : ""}
+                onClick={() => setPaymentMethod("")}
+              >
+                —
+              </button>
+              {PAYMENT_METHODS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={paymentMethod === p.id ? "on" : ""}
+                  onClick={() => setPaymentMethod(p.id)}
+                >
+                  <span aria-hidden="true">{p.icon}</span> {p.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="field-label">Merchant</div>
+            <input
+              className="desc-input"
+              placeholder="Where? (optional)"
+              aria-label="Merchant"
+              value={merchant}
+              onChange={(e) => setMerchant(e.target.value)}
+            />
+
+            <div className="field-label">Tags</div>
+            <input
+              className="desc-input"
+              placeholder="comma, separated (optional)"
+              aria-label="Tags"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+            />
+
+            <div className="field-label">Note</div>
+            <input
+              className="desc-input"
+              placeholder="Add a note (optional)"
+              aria-label="Note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div>
+        </Collapse>
+
+        <div className="sheet-actions">
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" disabled={!valid || storageFull} onClick={() => submit(false)}>
+            {primaryLabel}
+          </button>
+        </div>
+        {!isEdit && (
+          <button
+            type="button"
+            className="add-another"
+            disabled={!valid || storageFull}
+            onClick={() => submit(true)}
+          >
+            Save &amp; add another
+          </button>
+        )}
       </div>
     </>
   );
@@ -280,7 +529,9 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(ONBOARDING_KEY));
   const [storageError, setStorageError] = useState(false);
-  const [showAddSheet, setShowAddSheet] = useState(false);
+  // null when closed; { editing } when open — editing is the row being edited
+  // (or null for a fresh add). One piece of state drives both add and edit.
+  const [addSheet, setAddSheet] = useState(null);
   const [undo, setUndo] = useState(null); // { snapshot, label } | null
   const undoTimerRef = useRef(null);
 
@@ -304,6 +555,18 @@ export default function App() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }, [state]);
+
+  const handleExportCSV = useCallback(() => {
+    const blob = new Blob([toDailyCSV(state.dailyExpenses, state.settings.categories)], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `afterpayday-expenses-${todayISO()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [state.dailyExpenses, state.settings.categories]);
 
   const handleImport = useCallback((importedState) => {
     setState(importedState);
@@ -409,6 +672,12 @@ export default function App() {
     [state.dailyExpenses, monthKey]
   );
 
+  // Recent distinct descriptions for one-tap re-add in the Add sheet.
+  const recentSuggestions = useMemo(
+    () => recentDailySuggestions(state.dailyExpenses, 4),
+    [state.dailyExpenses]
+  );
+
   const fixedPaidThisMonth = useMemo(
     () => fixedPaidForMonth(state.fixedExpenses, monthKey),
     [state.fixedExpenses, monthKey]
@@ -463,32 +732,67 @@ export default function App() {
     setState((s) => ({ ...s, fixedExpenses: s.fixedExpenses.filter((e) => e.id !== id) }));
   };
 
-  const addDailyExpense = (amount, description, category = "other", date = todayISO()) => {
+  // Build the stored shape from the Add sheet's payload. Amounts are always
+  // stored positive; `kind` records direction (a refund lifts safe-to-spend).
+  // Optional fields are only included when set, matching storage's sanitizer.
+  // `date` defaults to today but can be back-dated; guard a malformed value so
+  // the entry survives the sanitizer.
+  const dailyFields = (entry) => {
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(entry.date) ? entry.date : todayISO();
+    const out = {
+      amount: Number(entry.amount),
+      description: entry.description || "",
+      date,
+      category: entry.category || "other",
+      kind: entry.kind === "refund" ? "refund" : "expense",
+    };
+    if (entry.merchant) out.merchant = entry.merchant;
+    if (entry.paymentMethod) out.paymentMethod = entry.paymentMethod;
+    if (Array.isArray(entry.tags) && entry.tags.length) out.tags = entry.tags;
+    if (entry.note) out.note = entry.note;
+    return out;
+  };
+
+  const addDailyExpense = (entry) => {
     if (storageError) return;
-    // Amounts are always stored positive; `kind` records direction. A refund
-    // is money coming back in, so it lifts safe-to-spend. `date` defaults to
-    // today but can be back-dated (e.g. a scanned receipt); guard against a
-    // malformed value so the entry survives storage's sanitizer.
-    const entryDate = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayISO();
     setState((s) => ({
       ...s,
       dailyExpenses: [
-        {
-          id: uid(),
-          amount: Number(amount),
-          description,
-          date: entryDate,
-          category,
-          kind: category === "refund" ? "refund" : "expense",
-        },
+        { id: uid(), createdAt: Date.now(), ...dailyFields(entry) },
         ...s.dailyExpenses,
       ],
     }));
   };
 
+  // Edit an existing entry in place. Preserves the original id and createdAt;
+  // re-derives every other field (optional fields cleared when emptied). Snapshot
+  // for undo first so an edit is as reversible as a delete.
+  const updateDailyExpense = (id, entry) => {
+    if (storageError) return;
+    requestUndo("Entry updated");
+    setState((s) => ({
+      ...s,
+      dailyExpenses: s.dailyExpenses.map((e) =>
+        e.id !== id
+          ? e
+          : { id: e.id, ...(Number.isFinite(e.createdAt) ? { createdAt: e.createdAt } : {}), ...dailyFields(entry) }
+      ),
+    }));
+  };
+
   const removeDailyExpense = (id) => {
-    requestUndo("Expense deleted");
+    requestUndo("Entry deleted");
     setState((s) => ({ ...s, dailyExpenses: s.dailyExpenses.filter((e) => e.id !== id) }));
+  };
+
+  // Append a user-defined custom category (from the Add sheet's quick-add).
+  // Built-ins live in code; settings.categories holds custom entries only.
+  const addCategory = (category) => {
+    setState((s) => {
+      const list = s.settings.categories || [];
+      if (list.some((c) => c.id === category.id)) return s;
+      return { ...s, settings: { ...s.settings, categories: [...list, category] } };
+    });
   };
 
   const addDebtGroup = (group) => {
@@ -643,7 +947,9 @@ export default function App() {
               spentThisMonth={spentThisMonth}
               safeToSpend={safeToSpend}
               dailyExpenses={state.dailyExpenses}
+              categories={state.settings.categories}
               onRemoveDaily={removeDailyExpense}
+              onEditDaily={(e) => setAddSheet({ editing: e })}
               amountsHidden={amountsHidden}
               setAmountsHidden={setAmountsHidden}
             />
@@ -721,7 +1027,7 @@ export default function App() {
             </button>
             <button
               className="fab"
-              onClick={() => setShowAddSheet(true)}
+              onClick={() => setAddSheet({ editing: null })}
               aria-label="Add expense"
               disabled={storageError}
               aria-disabled={storageError}
@@ -731,15 +1037,20 @@ export default function App() {
           </div>
         </nav>
 
-        {/* Add Expense Sheet */}
+        {/* Add / Edit Expense Sheet */}
         <AddSheet
-          open={showAddSheet}
+          open={Boolean(addSheet)}
+          editing={addSheet?.editing || null}
           currency={currency}
           storageFull={storageError}
-          onClose={() => setShowAddSheet(false)}
-          onSave={(amount, desc, cat, date) => {
-            addDailyExpense(amount, desc, cat, date);
-            setShowAddSheet(false);
+          categories={state.settings.categories}
+          suggestions={recentSuggestions}
+          onAddCategory={addCategory}
+          onClose={() => setAddSheet(null)}
+          onSave={(payload, id, addAnother) => {
+            if (id) updateDailyExpense(id, payload);
+            else addDailyExpense(payload);
+            if (!addAnother) setAddSheet(null);
           }}
         />
 
@@ -751,6 +1062,7 @@ export default function App() {
               setShowSettings(false);
             }}
             onExport={handleExport}
+            onExportCSV={handleExportCSV}
             onImport={handleImport}
           />
         )}

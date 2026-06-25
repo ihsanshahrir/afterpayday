@@ -1,18 +1,22 @@
 import { currentMonthKey } from "../utils/date.js";
 import { uid } from "../utils/id.js";
 import { CURRENCY_CODES, DEFAULT_CURRENCY } from "../utils/currencies.js";
+import { PAYMENT_METHOD_IDS, RESERVED_CATEGORY_IDS } from "../utils/categories.js";
 
 // The key name is historical and unrelated to the schema version below —
 // changing it would orphan every user's saved data.
 export const STORAGE_KEY = "expense-tracker:v1";
-export const CURRENT_VERSION = 2;
+export const CURRENT_VERSION = 3;
 
 // Fresh defaults on every call so loaded/imported state never shares array or
 // object references with this module — a returned state can be safely mutated
 // without corrupting the defaults used by the next load.
+//
+// `settings.categories` holds the user's CUSTOM categories only (built-ins live
+// in utils/categories.js); it defaults to [] so old saves load unchanged.
 const makeDefaultState = () => ({
   _version: CURRENT_VERSION,
-  settings: { salary: 0, currency: DEFAULT_CURRENCY },
+  settings: { salary: 0, currency: DEFAULT_CURRENCY, categories: [] },
   fixedExpenses: [],
   debtGroups: [],
   dailyExpenses: [],
@@ -55,6 +59,23 @@ const migrate = (data) => {
     }
     data._version = 2;
   }
+  if (data._version === 2) {
+    // v2 → v3: the Add sheet split direction out of the category chips, so
+    // "refund" is no longer a selectable category (it's recorded in `kind`,
+    // which these rows already carry from the v1→v2 migration). Reset the
+    // stale category to "other"; rendering already prefers `kind`, so this is
+    // cleanup only. New optional fields (createdAt, merchant, paymentMethod,
+    // tags, note) are intentionally left absent on old rows — the sanitizer
+    // passes them through when present and omits them otherwise.
+    if (Array.isArray(data.dailyExpenses)) {
+      data.dailyExpenses = data.dailyExpenses.map((e) =>
+        e && typeof e === "object" && e.category === "refund"
+          ? { ...e, category: "other" }
+          : e
+      );
+    }
+    data._version = 3;
+  }
   return data;
 };
 
@@ -68,20 +89,73 @@ const finiteOr = (v, fallback) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+const MAX_TAGS = 12;
+const MAX_TAG_LEN = 24;
+
+// Optional free-text passes through only when it's a non-empty string; the
+// field is omitted entirely otherwise so old saves and minimal entries stay
+// lean and every consumer can guard on presence.
+const optStr = (v) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+
+const sanitizeTags = (v) => {
+  if (!Array.isArray(v)) return undefined;
+  const tags = [];
+  for (const t of v) {
+    const s = optStr(t);
+    if (s && !tags.includes(s)) tags.push(s.slice(0, MAX_TAG_LEN));
+    if (tags.length >= MAX_TAGS) break;
+  }
+  return tags.length ? tags : undefined;
+};
+
+// Drops undefined keys so the stored object stays minimal (optional fields are
+// only present when set).
+const omitUndefined = (obj) => {
+  const out = {};
+  for (const k in obj) if (obj[k] !== undefined) out[k] = obj[k];
+  return out;
+};
+
 // Per-item sanitizers. Items that can't be repaired (no usable amount/date)
-// are dropped rather than left to poison the safe-to-spend math.
+// are dropped rather than left to poison the safe-to-spend math. Optional
+// fields (createdAt, merchant, paymentMethod, tags, note) are passed through
+// only when valid and omitted otherwise.
 const sanitizeDaily = (e) => {
   if (!e || typeof e !== "object") return null;
   const amount = Number(e.amount);
   if (!Number.isFinite(amount) || amount <= 0) return null;
   if (!isISODate(e.date)) return null;
-  return {
+  const createdAt = Number(e.createdAt);
+  const paymentMethod =
+    PAYMENT_METHOD_IDS.includes(e.paymentMethod) ? e.paymentMethod : undefined;
+  return omitUndefined({
     id: typeof e.id === "string" && e.id ? e.id : uid(),
     amount,
     description: typeof e.description === "string" ? e.description : "",
     date: e.date,
     category: typeof e.category === "string" && e.category ? e.category : "other",
     kind: e.kind === "refund" ? "refund" : "expense",
+    createdAt: Number.isFinite(createdAt) && createdAt > 0 ? createdAt : undefined,
+    merchant: optStr(e.merchant),
+    paymentMethod,
+    tags: sanitizeTags(e.tags),
+    note: optStr(e.note),
+  });
+};
+
+// A user-defined custom category. Requires a usable id + label; rejects the
+// reserved "refund" id; clamps the rest to sane presentational defaults.
+const sanitizeCategory = (c) => {
+  if (!c || typeof c !== "object") return null;
+  const id = optStr(c.id);
+  const label = optStr(c.label);
+  if (!id || !label || RESERVED_CATEGORY_IDS.includes(id)) return null;
+  return {
+    id,
+    label: label.slice(0, 24),
+    icon: typeof c.icon === "string" && c.icon ? [...c.icon][0] : "•",
+    color: typeof c.color === "string" && c.color ? c.color : "var(--fg-2)",
+    bg: typeof c.bg === "string" && c.bg ? c.bg : "rgba(255,255,255,0.10)",
   };
 };
 
@@ -149,6 +223,14 @@ const normalizeState = (raw) => {
   const salary = Number(s.settings.salary);
   s.settings.salary = Number.isFinite(salary) && salary >= 0 ? salary : 0;
   if (!CURRENCY_CODES.includes(s.settings.currency)) s.settings.currency = DEFAULT_CURRENCY;
+  // Custom categories only (built-ins live in utils/categories.js). Validate
+  // each and drop duplicate ids so the merged selectable list stays clean.
+  {
+    const seen = new Set();
+    s.settings.categories = (Array.isArray(s.settings.categories) ? s.settings.categories : [])
+      .map(sanitizeCategory)
+      .filter((c) => c && !seen.has(c.id) && seen.add(c.id));
+  }
   s.fixedExpenses = (Array.isArray(s.fixedExpenses) ? s.fixedExpenses : [])
     .map(sanitizeFixed).filter(Boolean);
   s.debtGroups = (Array.isArray(s.debtGroups) ? s.debtGroups : [])
