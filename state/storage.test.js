@@ -246,3 +246,80 @@ describe("normalizeState validation", () => {
     expect(s.dailyExpenses[0].id).toBeTruthy();
   });
 });
+
+describe("migration v2 → v3", () => {
+  it("resets the stale refund category to other while keeping kind", () => {
+    const s = importState({
+      _version: 2,
+      dailyExpenses: [{ id: "d1", amount: 50, description: "", date: "2026-05-10", category: "refund", kind: "refund" }],
+    });
+    expect(s.dailyExpenses[0].kind).toBe("refund");
+    expect(s.dailyExpenses[0].category).toBe("other");
+  });
+
+  it("leaves old rows without a createdAt (does not fabricate one)", () => {
+    const s = importState({
+      _version: 2,
+      dailyExpenses: [{ id: "d1", amount: 10, description: "x", date: "2026-05-10", category: "food", kind: "expense" }],
+    });
+    expect(s.dailyExpenses[0].createdAt).toBeUndefined();
+  });
+
+  it("stamps version 3 on load", () => {
+    expect(loadState()._version).toBe(3);
+    expect(CURRENT_VERSION).toBe(3);
+  });
+});
+
+describe("v3 optional fields", () => {
+  it("passes through valid createdAt and optional fields, omitting invalid ones", () => {
+    const s = importState({
+      dailyExpenses: [{
+        id: "d1", amount: 10, date: "2026-06-10", category: "food", kind: "expense",
+        createdAt: 1_700_000_000_000, merchant: "Cafe", paymentMethod: "card",
+        tags: ["work", "work", "", "trip"], note: "  hi  ",
+      }],
+    });
+    const e = s.dailyExpenses[0];
+    expect(e.createdAt).toBe(1_700_000_000_000);
+    expect(e.merchant).toBe("Cafe");
+    expect(e.paymentMethod).toBe("card");
+    expect(e.tags).toEqual(["work", "trip"]); // deduped, blanks dropped
+    expect(e.note).toBe("hi"); // trimmed
+  });
+
+  it("drops an unknown paymentMethod and a non-finite createdAt", () => {
+    const s = importState({
+      dailyExpenses: [{
+        id: "d1", amount: 10, date: "2026-06-10", category: "food", kind: "expense",
+        createdAt: "nope", paymentMethod: "bitcoin",
+      }],
+    });
+    const e = s.dailyExpenses[0];
+    expect(e.createdAt).toBeUndefined();
+    expect(e.paymentMethod).toBeUndefined();
+  });
+});
+
+describe("settings.categories", () => {
+  it("defaults to an empty array", () => {
+    expect(loadState().settings.categories).toEqual([]);
+  });
+
+  it("keeps valid custom categories, drops invalid and reserved, dedupes ids", () => {
+    const s = importState({
+      settings: {
+        categories: [
+          { id: "c1", label: "Groceries", icon: "🛒", color: "var(--amber)", bg: "rgba(1,1,1,0.1)" },
+          { id: "c1", label: "Dup id" },          // duplicate id → dropped
+          { id: "refund", label: "Nope" },         // reserved → dropped
+          { label: "No id" },                       // missing id → dropped
+          "not-an-object",
+        ],
+      },
+    });
+    expect(s.settings.categories).toHaveLength(1);
+    expect(s.settings.categories[0].id).toBe("c1");
+    expect(s.settings.categories[0].label).toBe("Groceries");
+  });
+});

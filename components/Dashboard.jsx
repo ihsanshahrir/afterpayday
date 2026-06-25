@@ -1,17 +1,20 @@
-import { useState } from "react";
-import { Trash2, Eye, EyeOff } from "lucide-react";
-import { todayISO, isInCurrentMonth } from "../utils/date.js";
+import { useState, useMemo } from "react";
+import { Trash2, Eye, EyeOff, Search, SlidersHorizontal } from "lucide-react";
+import { todayISO, isInCurrentMonth, currentMonthKey, fmtRelativeDay, fmtTime } from "../utils/date.js";
 import { fmtNum, fmtCompact, MASK } from "../utils/money.js";
 import { LOCALE } from "../utils/locale.js";
+import { categoryMeta, mergeCategories } from "../utils/categories.js";
+import { groupDailyByDay, filterDailyExpenses, isDailyFilterActive } from "../state/derive.js";
 import SwapFade from "./SwapFade.jsx";
 
-const CATEGORY_META = {
-  food:   { icon: "☕", bg: "rgba(252,211,77,0.18)",  color: "var(--amber)" },
-  fuel:   { icon: "⛽", bg: "rgba(167,139,250,0.18)", color: "var(--violet)" },
-  shop:   { icon: "🛍", bg: "rgba(249,168,212,0.18)", color: "var(--pink)" },
-  refund: { icon: "↺",  bg: "rgba(52,211,153,0.18)",  color: "var(--emerald)" },
-  other:  { icon: "•",  bg: "rgba(255,255,255,0.10)", color: "var(--fg-2)" },
-};
+const SORTS = [
+  { id: "date-desc", label: "Newest" },
+  { id: "date-asc", label: "Oldest" },
+  { id: "amount-desc", label: "Largest" },
+  { id: "amount-asc", label: "Smallest" },
+];
+
+const DEFAULT_FILTER = { text: "", category: "all", kind: "all", sort: "date-desc" };
 
 export default function Dashboard({
   currency,
@@ -24,16 +27,38 @@ export default function Dashboard({
   spentThisMonth,
   safeToSpend,
   dailyExpenses,
+  categories,
   onRemoveDaily,
+  onEditDaily,
   amountsHidden,
   setAmountsHidden,
 }) {
   const [showAllMonth, setShowAllMonth] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filter, setFilter] = useState(DEFAULT_FILTER);
 
+  const monthKey = currentMonthKey();
   const today = todayISO();
-  const todays = dailyExpenses.filter((e) => e.date === today);
-  const monthly = dailyExpenses.filter((e) => isInCurrentMonth(e.date));
-  const list = showAllMonth ? monthly : todays;
+  const todays = useMemo(
+    () => dailyExpenses.filter((e) => e.date === today),
+    [dailyExpenses, today]
+  );
+  const monthly = useMemo(
+    () => dailyExpenses.filter((e) => isInCurrentMonth(e.date)),
+    [dailyExpenses]
+  );
+
+  const filterActive = isDailyFilterActive(filter);
+  const monthGroups = useMemo(
+    () => groupDailyByDay(dailyExpenses, monthKey),
+    [dailyExpenses, monthKey]
+  );
+  const filteredMonth = useMemo(
+    () => (filterActive ? filterDailyExpenses(monthly, filter) : monthly),
+    [filterActive, monthly, filter]
+  );
+
+  const catOptions = useMemo(() => mergeCategories(categories), [categories]);
 
   const isNegative = safeToSpend < 0;
   const total = salary;
@@ -43,6 +68,49 @@ export default function Dashboard({
 
   const [intRaw, centPart] = Math.abs(safeToSpend).toFixed(2).split(".");
   const intPart = Number(intRaw).toLocaleString(LOCALE);
+
+  const setF = (patch) => setFilter((f) => ({ ...f, ...patch }));
+
+  const listCount = showAllMonth ? monthly.length : todays.length;
+
+  // One list row. The tap-zone (icon + text + amount) is a button that opens the
+  // entry for editing; the trash button is a sibling so interactive elements
+  // never nest. `subtitle` is context-dependent (time, category, or day).
+  const Row = (e, subtitle) => {
+    const isRefund = e.kind === "refund";
+    const meta = categoryMeta(categories, e.category, e.kind);
+    const label = e.description || meta.label;
+    const amt = amountsHidden ? MASK : fmtNum(Math.abs(Number(e.amount)));
+    return (
+      <li key={e.id} className={`it ${isRefund ? "in" : "out"}`}>
+        <button
+          type="button"
+          className="it-tap"
+          onClick={() => onEditDaily(e)}
+          aria-label={`Edit ${label}`}
+        >
+          <div className="ic" style={{ background: meta.bg, color: meta.color }} aria-hidden="true">
+            {meta.icon}
+          </div>
+          <div className="text">
+            <div className="d">{label}</div>
+            <div className="t">{subtitle}</div>
+          </div>
+          <span className="v">{amt}</span>
+        </button>
+        <button
+          className="x"
+          aria-label={`Delete ${label}`}
+          onClick={() => onRemoveDaily(e.id)}
+        >
+          <Trash2 size={15} strokeWidth={1.75} />
+        </button>
+      </li>
+    );
+  };
+
+  // Today: show the time when we have it (newer entries), else the category.
+  const todaySubtitle = (e) => fmtTime(e.createdAt) || categoryMeta(categories, e.category, e.kind).label;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 8 }}>
@@ -146,41 +214,101 @@ export default function Dashboard({
       {/* Today / Month list */}
       <div className="glass list" style={{ margin: "0 14px" }}>
         <div className="lh">
-          <span className="t">{showAllMonth ? "This month" : "Today"}</span>
-          <button className="a" onClick={() => setShowAllMonth((v) => !v)}>
-            {showAllMonth ? "Show today" : "This month →"}
-          </button>
+          <span className="t">
+            {showAllMonth ? "This month" : "Today"}
+            {listCount > 0 && <span className="count"> · {listCount}</span>}
+          </span>
+          <div className="lh-actions">
+            {showAllMonth && (
+              <button
+                className={`filter-btn${showFilters || filterActive ? " on" : ""}`}
+                aria-label="Filter and sort"
+                aria-pressed={showFilters}
+                onClick={() => setShowFilters((v) => !v)}
+              >
+                <SlidersHorizontal size={15} strokeWidth={1.75} />
+              </button>
+            )}
+            <button className="a" onClick={() => setShowAllMonth((v) => !v)}>
+              {showAllMonth ? "Show today" : "This month →"}
+            </button>
+          </div>
         </div>
+
         <SwapFade swapKey={showAllMonth ? "month" : "today"}>
-          {list.length === 0 ? (
-            <div className="empty">No expenses {showAllMonth ? "this month" : "today"} yet.</div>
+          {!showAllMonth ? (
+            todays.length === 0 ? (
+              <div className="empty">No expenses today yet.</div>
+            ) : (
+              <ul role="list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                {todays.map((e) => Row(e, todaySubtitle(e)))}
+              </ul>
+            )
           ) : (
-            <ul role="list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
-              {list.map((e) => {
-                const isRefund = e.kind === "refund";
-                const cat = e.category || (isRefund ? "refund" : "other");
-                const meta = CATEGORY_META[cat] || CATEGORY_META.other;
-                return (
-                  <li key={e.id} className={`it ${isRefund ? "in" : "out"}`}>
-                    <div className="ic" style={{ background: meta.bg, color: meta.color }} aria-hidden="true">
-                      {meta.icon}
-                    </div>
-                    <div className="text">
-                      <div className="d">{e.description || "Untitled"}</div>
-                      <div className="t">{e.date}</div>
-                    </div>
-                    <span className="v">{amountsHidden ? MASK : fmtNum(Math.abs(Number(e.amount)))}</span>
-                    <button
-                      className="x"
-                      aria-label={`Delete ${e.description || (isRefund ? "refund" : "expense")}`}
-                      onClick={() => onRemoveDaily(e.id)}
-                    >
-                      <Trash2 size={15} strokeWidth={1.75} />
+            <div>
+              {showFilters && (
+                <div className="filter-bar">
+                  <div className="filter-search">
+                    <Search size={14} strokeWidth={1.75} aria-hidden="true" />
+                    <input
+                      value={filter.text}
+                      onChange={(e) => setF({ text: e.target.value })}
+                      placeholder="Search description, merchant, tags…"
+                      aria-label="Search this month"
+                    />
+                  </div>
+                  <div className="filter-row">
+                    <select aria-label="Category" value={filter.category} onChange={(e) => setF({ category: e.target.value })}>
+                      <option value="all">All categories</option>
+                      {catOptions.map((c) => (
+                        <option key={c.id} value={c.id}>{c.label}</option>
+                      ))}
+                    </select>
+                    <select aria-label="Type" value={filter.kind} onChange={(e) => setF({ kind: e.target.value })}>
+                      <option value="all">Expenses & refunds</option>
+                      <option value="expense">Expenses</option>
+                      <option value="refund">Refunds</option>
+                    </select>
+                    <select aria-label="Sort" value={filter.sort} onChange={(e) => setF({ sort: e.target.value })}>
+                      {SORTS.map((s) => (
+                        <option key={s.id} value={s.id}>{s.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {filterActive && (
+                    <button className="filter-clear" onClick={() => setFilter(DEFAULT_FILTER)}>
+                      Clear filters
                     </button>
-                  </li>
-                );
-              })}
-            </ul>
+                  )}
+                </div>
+              )}
+
+              {monthly.length === 0 ? (
+                <div className="empty">No expenses this month yet.</div>
+              ) : filterActive ? (
+                filteredMonth.length === 0 ? (
+                  <div className="empty">Nothing matches those filters.</div>
+                ) : (
+                  <ul role="list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                    {filteredMonth.map((e) => Row(e, fmtRelativeDay(e.date)))}
+                  </ul>
+                )
+              ) : (
+                monthGroups.map((g) => (
+                  <div key={g.date} className="day-group">
+                    <div className="day-head">
+                      <span className="day-label">{fmtRelativeDay(g.date)}</span>
+                      <span className={`day-sub${g.subtotal < 0 ? " in" : ""}`}>
+                        {amountsHidden ? MASK : `${g.subtotal < 0 ? "+" : ""}${fmtNum(Math.abs(g.subtotal))}`}
+                      </span>
+                    </div>
+                    <ul role="list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                      {g.items.map((e) => Row(e, fmtTime(e.createdAt) || categoryMeta(categories, e.category, e.kind).label))}
+                    </ul>
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </SwapFade>
       </div>

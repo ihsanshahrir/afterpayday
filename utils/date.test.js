@@ -6,6 +6,8 @@ import {
   isFixedPaidThisMonth,
   isOverdue,
   fmtDate,
+  fmtRelativeDay,
+  fmtTime,
 } from "./date.js";
 
 const iso = (d) => {
@@ -63,5 +65,24 @@ describe("fmtDate", () => {
 
   it("includes the year for a valid ISO date", () => {
     expect(fmtDate("2026-01-12")).toMatch(/2026/);
+  });
+});
+
+describe("fmtRelativeDay", () => {
+  it("labels today and yesterday, and falls back to the full date", () => {
+    const yesterday = new Date(Date.now() - 86_400_000);
+    expect(fmtRelativeDay(todayISO())).toBe("Today");
+    expect(fmtRelativeDay(iso(yesterday))).toBe("Yesterday");
+    expect(fmtRelativeDay("1999-01-01")).toMatch(/1999/);
+    expect(fmtRelativeDay("")).toBe("");
+    expect(fmtRelativeDay(null)).toBe("");
+  });
+});
+
+describe("fmtTime", () => {
+  it("returns a non-empty time string for a valid timestamp and empty for missing", () => {
+    expect(fmtTime(new Date(2026, 0, 1, 14, 32).getTime())).toMatch(/\d/);
+    expect(fmtTime(undefined)).toBe("");
+    expect(fmtTime(NaN)).toBe("");
   });
 });

@@ -9,6 +9,10 @@ import {
   computeSafeToSpend,
   computeSpentThisMonth,
   buildMonthSnapshot,
+  groupDailyByDay,
+  recentDailySuggestions,
+  filterDailyExpenses,
+  isDailyFilterActive,
 } from "./derive.js";
 
 const M = "2026-06";
@@ -202,5 +206,98 @@ describe("buildMonthSnapshot", () => {
     expect(snap.installments).toBe(0);
     expect(snap.dailySpent).toBe(0);
     expect(snap.balance).toBe(0);
+  });
+});
+
+describe("groupDailyByDay", () => {
+  it("groups by day, newest day first, with net subtotals", () => {
+    const list = [
+      { id: "1", amount: 10, date: `${M}-12`, kind: "expense", category: "food" },
+      { id: "2", amount: 5, date: `${M}-10`, kind: "expense", category: "food" },
+      { id: "3", amount: 4, date: `${M}-10`, kind: "refund", category: "other" },
+    ];
+    const groups = groupDailyByDay(list, M);
+    expect(groups.map((g) => g.date)).toEqual([`${M}-12`, `${M}-10`]);
+    expect(groups[0].subtotal).toBe(10);
+    expect(groups[1].subtotal).toBe(1); // 5 expense − 4 refund
+    expect(groups[1].items).toHaveLength(2);
+  });
+
+  it("orders items within a day newest-first by createdAt", () => {
+    const list = [
+      { id: "old", amount: 1, date: `${M}-10`, kind: "expense", createdAt: 100 },
+      { id: "new", amount: 2, date: `${M}-10`, kind: "expense", createdAt: 200 },
+    ];
+    expect(groupDailyByDay(list, M)[0].items.map((e) => e.id)).toEqual(["new", "old"]);
+  });
+
+  it("ignores other months and missing dates", () => {
+    const list = [
+      { id: "1", amount: 10, date: `${M}-12`, kind: "expense" },
+      { id: "2", amount: 99, date: "2026-05-10", kind: "expense" },
+      { id: "3", amount: 5, date: null, kind: "expense" },
+    ];
+    expect(groupDailyByDay(list, M)).toHaveLength(1);
+  });
+});
+
+describe("recentDailySuggestions", () => {
+  it("returns distinct recent descriptions, deduped case-insensitively, skipping refunds and blanks", () => {
+    const list = [
+      { description: "Coffee", category: "food", kind: "expense" },
+      { description: "coffee", category: "food", kind: "expense" },
+      { description: "", category: "other", kind: "expense" },
+      { description: "Refunded", category: "shop", kind: "refund" },
+      { description: "Fuel", category: "fuel", kind: "expense" },
+    ];
+    expect(recentDailySuggestions(list, 4)).toEqual([
+      { description: "Coffee", category: "food" },
+      { description: "Fuel", category: "fuel" },
+    ]);
+  });
+
+  it("respects the limit", () => {
+    const list = [
+      { description: "a", category: "food", kind: "expense" },
+      { description: "b", category: "food", kind: "expense" },
+      { description: "c", category: "food", kind: "expense" },
+    ];
+    expect(recentDailySuggestions(list, 2)).toHaveLength(2);
+  });
+});
+
+describe("filterDailyExpenses", () => {
+  const list = [
+    { id: "1", amount: 30, date: `${M}-12`, kind: "expense", category: "food", description: "Lunch", merchant: "Cafe", tags: ["work"] },
+    { id: "2", amount: 10, date: `${M}-10`, kind: "refund", category: "shop", description: "Return", note: "shoes" },
+    { id: "3", amount: 50, date: `${M}-11`, kind: "expense", category: "fuel", description: "Petrol" },
+  ];
+
+  it("filters by free text across description, merchant, tags, note", () => {
+    expect(filterDailyExpenses(list, { text: "cafe" }).map((e) => e.id)).toEqual(["1"]);
+    expect(filterDailyExpenses(list, { text: "shoes" }).map((e) => e.id)).toEqual(["2"]);
+    expect(filterDailyExpenses(list, { text: "work" }).map((e) => e.id)).toEqual(["1"]);
+  });
+
+  it("filters by category and kind", () => {
+    expect(filterDailyExpenses(list, { category: "fuel" }).map((e) => e.id)).toEqual(["3"]);
+    expect(filterDailyExpenses(list, { kind: "refund" }).map((e) => e.id)).toEqual(["2"]);
+  });
+
+  it("sorts by amount and date without mutating the input", () => {
+    const before = list.map((e) => e.id);
+    expect(filterDailyExpenses(list, { sort: "amount-desc" }).map((e) => e.id)).toEqual(["3", "1", "2"]);
+    expect(filterDailyExpenses(list, { sort: "date-asc" }).map((e) => e.id)).toEqual(["2", "3", "1"]);
+    expect(list.map((e) => e.id)).toEqual(before);
+  });
+});
+
+describe("isDailyFilterActive", () => {
+  it("is false for defaults and true for any change", () => {
+    expect(isDailyFilterActive({})).toBe(false);
+    expect(isDailyFilterActive({ text: "", category: "all", kind: "all", sort: "date-desc" })).toBe(false);
+    expect(isDailyFilterActive({ text: "x" })).toBe(true);
+    expect(isDailyFilterActive({ category: "food" })).toBe(true);
+    expect(isDailyFilterActive({ sort: "amount-asc" })).toBe(true);
   });
 });
