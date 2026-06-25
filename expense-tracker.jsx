@@ -557,7 +557,7 @@ export default function App() {
   }, [state]);
 
   const handleExportCSV = useCallback(() => {
-    const blob = new Blob([toDailyCSV(state.dailyExpenses)], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([toDailyCSV(state.dailyExpenses, state.settings.categories)], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -566,7 +566,7 @@ export default function App() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, [state.dailyExpenses]);
+  }, [state.dailyExpenses, state.settings.categories]);
 
   const handleImport = useCallback((importedState) => {
     setState(importedState);
