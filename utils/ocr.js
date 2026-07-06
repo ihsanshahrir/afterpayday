@@ -6,10 +6,15 @@
 // scanning keeps the app's offline/"nothing leaves the device" promise once the
 // assets have been cached (see the Workbox rule in vite.config.js).
 
-// SHA-256 of public/tesseract/eng.traineddata.gz as committed.
-// verifyModel() checks the served file against this before OCR runs.
+// SHA-256 of public/tesseract/eng.traineddata.gz as committed, plus the hash
+// of its gunzipped payload. verifyModel() accepts either: servers that mark
+// the file `Content-Encoding: gzip` (e.g. the Vite dev server) make fetch()
+// hand back the decompressed bytes, which would otherwise fail the check and
+// break scanning even though the served content is exactly what's pinned.
 const MODEL_SHA256 =
   "2336abc91428f3842f81f92c9c8390a9b5c01ec9c5f56a738d6d8f587ef40771";
+const MODEL_RAW_SHA256 =
+  "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2";
 
 let workerPromise = null;
 // scanLock enforces single-scan-at-a-time at the module boundary (the UI also
@@ -32,7 +37,7 @@ async function verifyModel(base) {
   const hex = Array.from(new Uint8Array(hashBuf), (b) =>
     b.toString(16).padStart(2, "0")
   ).join("");
-  if (hex !== MODEL_SHA256) {
+  if (hex !== MODEL_SHA256 && hex !== MODEL_RAW_SHA256) {
     throw new Error(
       "OCR language model integrity check failed — the model file does not match the expected hash"
     );
