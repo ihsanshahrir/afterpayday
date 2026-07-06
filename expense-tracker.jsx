@@ -179,11 +179,16 @@ function AddSheet({
     );
     if (addAnother && !isEdit) {
       // Rapid logging: keep date/category/direction/payment, clear the rest.
+      // The sheet stays open here, so also clear the scan indicator — the
+      // token bump above means an in-flight scan's finally block will no
+      // longer reset it, and a stuck spinner would disable the Scan button.
       setAmount("");
       setDesc("");
       setMerchant("");
       setTags("");
       setNote("");
+      setScanning(false);
+      setScanProgress(0);
       setScanError(null);
       setTimeout(() => amtRef.current && amtRef.current.focus(), 0);
     }

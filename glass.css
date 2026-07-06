@@ -484,10 +484,11 @@ input { font: inherit; }
 .debt-card .inst-row .ix { background: none; border: 0; color: var(--fg-5); padding: 3px; transition: color 150ms ease; }
 .debt-card .inst-row .ix:hover { color: var(--rose); }
 /* Edit / save affordances shouldn't read as destructive — keep them neutral
-   on hover instead of the rose used for delete. */
-.fixed-card .fx-row .row-x[aria-label="Edit"]:hover,
+   on hover instead of the rose used for delete. Prefix match: the labels are
+   "Edit {name}" / "Save", never a bare "Edit". */
+.fixed-card .fx-row .row-x[aria-label^="Edit"]:hover,
 .fixed-card .fx-row .row-x[aria-label="Save"]:hover,
-.debt-card .inst-row .ix[aria-label="Edit"]:hover { color: var(--emerald); }
+.debt-card .inst-row .ix[aria-label^="Edit"]:hover { color: var(--emerald); }
 
 /* Small urgent note shown under a "due" figure when prior-month installments
    remain unpaid, so overdue debt never hides from the headline totals. */
@@ -692,20 +693,22 @@ input { font: inherit; }
 }
 
 /* ----- Add sheet: direction toggle, suggestions, details --------- */
-/* Segmented control (expense/refund, payment method) */
-.seg {
+/* Segmented control (expense/refund, payment method). Scoped to .sheet so
+   the generic .seg block further down (debt forms' auto/manual toggle) can't
+   override these at equal specificity — it sits later in the file. */
+.sheet .seg {
   display: inline-flex; gap: 4px; padding: 3px;
   background: var(--glass); border: 1px solid var(--glass-edge); border-radius: 12px;
 }
-.seg.seg-wrap { display: flex; flex-wrap: wrap; }
-.seg button {
+.sheet .seg.seg-wrap { display: flex; flex-wrap: wrap; }
+.sheet .seg button {
   flex: 1 1 auto; white-space: nowrap;
   padding: 8px 14px; border-radius: 9px; border: 0; background: transparent;
   color: var(--fg-3); font: 600 12px var(--font); cursor: pointer;
   transition: background 150ms ease, color 150ms ease;
 }
-.seg button:hover { color: var(--fg-2); }
-.seg button.on { background: rgba(167,139,250,0.20); color: var(--fg); }
+.sheet .seg button:hover { color: var(--fg-2); }
+.sheet .seg button.on { background: rgba(167,139,250,0.20); color: var(--fg); }
 .sheet > .seg { display: flex; width: 100%; margin-top: 4px; }
 
 /* recent-description suggestion chips */

@@ -71,7 +71,11 @@ export default function Dashboard({
 
   const setF = (patch) => setFilter((f) => ({ ...f, ...patch }));
 
-  const listCount = showAllMonth ? monthly.length : todays.length;
+  // Header count mirrors the rows actually rendered below — the filtered
+  // subset when a month-view filter is active, not the whole month.
+  const listCount = showAllMonth
+    ? (filterActive ? filteredMonth.length : monthly.length)
+    : todays.length;
 
   // One list row. The tap-zone (icon + text + amount) is a button that opens the
   // entry for editing; the trash button is a sibling so interactive elements
