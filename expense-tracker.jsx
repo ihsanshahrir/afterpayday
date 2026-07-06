@@ -100,6 +100,11 @@ function AddSheet({
   // before the async work finishes, preventing stale OCR results from writing
   // into the form after a close/save.
   const scanTokenRef = useRef(0);
+  // Identifies the most recent scan attempt. The busy indicator is cleared by
+  // the scan's own completion rather than the save/close token: the on-device
+  // engine is single-flight, so the Scan button must stay disabled until the
+  // previous run actually settles — even after its result has been discarded.
+  const scanSeqRef = useRef(0);
 
   const allCats = useMemo(() => mergeCategories(categories), [categories]);
 
@@ -179,6 +184,9 @@ function AddSheet({
     );
     if (addAnother && !isEdit) {
       // Rapid logging: keep date/category/direction/payment, clear the rest.
+      // A scan still in flight keeps the busy indicator up until the engine
+      // settles (its finally block clears it — see scanSeqRef); its result is
+      // discarded by the token bump above.
       setAmount("");
       setDesc("");
       setMerchant("");
@@ -238,6 +246,7 @@ function AddSheet({
     setScanProgress(0);
     setScanning(true);
     const token = scanTokenRef.current;
+    const seq = ++scanSeqRef.current;
     const useAI = smartScan && SMART_SCAN_AVAILABLE && navigator.onLine;
     try {
       const canvas = await downscaleToCanvas(file);
@@ -268,7 +277,15 @@ function AddSheet({
       console.error("Receipt scan failed", err);
       setScanError("Scan failed. The first scan needs a connection; after that it works offline.");
     } finally {
-      if (scanTokenRef.current === token) setScanning(false);
+      // Clear the busy state only if no newer scan attempt has started. Keyed
+      // to the scan sequence, not the close/save token: a save can discard
+      // this scan's RESULT while the engine is still busy, and re-enabling the
+      // Scan button before the run settles would let the next pick hit the
+      // engine's single-flight lock and surface a false failure.
+      if (scanSeqRef.current === seq) {
+        setScanning(false);
+        setScanProgress(0);
+      }
     }
   };
 

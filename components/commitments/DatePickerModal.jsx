@@ -16,8 +16,14 @@ export default function DatePickerModal({ mode, initialDay, initialMonth, initia
   const [selectedYear, setSelectedYear] = useState(initialYear);
   const [isOpen, setIsOpen] = useState(false);
 
+  // Base range is close to now, but always widened to include the year being
+  // edited — installment schedules can run decades out (up to 600 months), and
+  // a wheel without the current value would silently snap to a wrong year.
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 11 }, (_, i) => currentYear - 2 + i);
+  const anchorYear = Number.isFinite(initialYear) ? initialYear : currentYear;
+  const startYear = Math.min(currentYear - 2, anchorYear);
+  const endYear = Math.max(currentYear + 8, anchorYear);
+  const years = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
 
   const maxDay = daysInMonth(selectedMonth, selectedYear);
   useEffect(() => {
