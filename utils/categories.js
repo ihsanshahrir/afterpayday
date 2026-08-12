@@ -7,6 +7,8 @@
 // top of the built-ins by id. This keeps the curated out-of-box set intact
 // while staying extensible ("curated + add your own").
 
+import { uid } from "./id.js";
+
 export const DEFAULT_CATEGORY_ID = "other";
 
 export const DEFAULT_CATEGORIES = [
@@ -75,3 +77,22 @@ export const categoryMeta = (custom, id, kind) => {
 
 export const paymentMethodMeta = (id) =>
   PAYMENT_METHODS.find((p) => p.id === id) || null;
+
+// Builds a custom category record from a user-typed label and a palette
+// index (each caller picks the index differently — auto by count, or by an
+// explicit swatch pick — so that part stays with the caller). Returns null
+// for a blank label so callers can treat it as a no-op. `uid()` keeps the id
+// consistent with every other stored id in the app.
+export const makeCustomCategory = (label, paletteIndex) => {
+  const trimmed = String(label ?? "").trim();
+  if (!trimmed) return null;
+  const palette = CATEGORY_COLORS[paletteIndex % CATEGORY_COLORS.length];
+  const icon = /^\p{Extended_Pictographic}/u.test(trimmed) ? [...trimmed][0] : "•";
+  return {
+    id: uid(),
+    label: trimmed.slice(0, 24),
+    icon,
+    color: palette.color,
+    bg: palette.bg,
+  };
+};

@@ -11,9 +11,10 @@ import {
   Plus,
 } from "lucide-react";
 import { uid } from "./utils/id.js";
-import { todayISO, currentMonthKey, isFixedPaidThisMonth, monthLabel, fmtDate } from "./utils/date.js";
+import { todayISO, currentMonthKey, nextMonthKey, isFixedPaidThisMonth, monthLabel, fmtDate } from "./utils/date.js";
 import { fmtNum } from "./utils/money.js";
-import { mergeCategories, PAYMENT_METHODS, CATEGORY_COLORS } from "./utils/categories.js";
+import { mergeCategories, PAYMENT_METHODS, makeCustomCategory } from "./utils/categories.js";
+import { SMART_SCAN_PREF_KEY } from "./utils/ui.js";
 import { toDailyCSV } from "./utils/csv.js";
 import DatePickerField from "./components/commitments/DatePickerField.jsx";
 import Collapse from "./components/Collapse.jsx";
@@ -25,11 +26,11 @@ import { loadState, saveState } from "./state/storage.js";
 import {
   fixedGrandTotal,
   fixedUnpaidTotal,
-  fixedPaidForMonth,
   installmentTotals,
-  dailyTotalForMonth,
   recentDailySuggestions,
   buildMonthSnapshot,
+  computeSafeToSpend,
+  computeSpentThisMonth,
 } from "./state/derive.js";
 import SplashScreen from "./components/SplashScreen.jsx";
 import OnboardingSlides, { ONBOARDING_KEY } from "./components/OnboardingSlides.jsx";
@@ -42,7 +43,6 @@ import useFocusTrap from "./hooks/useFocusTrap.js";
 // Whether the AI proxy is configured for this build. When false, Smart Scan is
 // hidden entirely and scanning stays 100% on-device (Tesseract).
 const SMART_SCAN_AVAILABLE = Boolean(SCAN_PROXY_URL);
-const SMART_SCAN_PREF_KEY = "afterpayday:smartScan";
 
 const readSmartScanPref = () => {
   try {
@@ -204,17 +204,8 @@ function AddSheet({
   };
 
   const confirmAddCat = () => {
-    const label = newCat.trim();
-    if (!label) return;
-    const palette = CATEGORY_COLORS[allCats.length % CATEGORY_COLORS.length];
-    const icon = /^\p{Extended_Pictographic}/u.test(label) ? [...label][0] : "•";
-    const category = {
-      id: `c-${Math.random().toString(36).slice(2, 8)}`,
-      label: label.slice(0, 24),
-      icon,
-      color: palette.color,
-      bg: palette.bg,
-    };
+    const category = makeCustomCategory(newCat, allCats.length);
+    if (!category) return;
     onAddCategory?.(category);
     setCat(category.id);
     setNewCat("");
@@ -614,17 +605,29 @@ export default function App() {
     const checkRollover = () => {
       const s = stateRef.current;
       const nowMonth = currentMonthKey();
-      if (!s.currentMonth || s.currentMonth === nowMonth) return;
+      if (!s.currentMonth || s.currentMonth >= nowMonth) return;
 
-      // Snapshot the month as actually spent — only count fixed expenses and
-      // installments the user marked paid. Unpaid amounts roll forward as
-      // overdue rather than retroactively reducing the closed month's balance.
-      const snapshot = { id: uid(), ...buildMonthSnapshot(s, s.currentMonth) };
+      // Snapshot every month between the last-seen month and now, not just the
+      // most recent one — if the app goes unopened across a gap of 2+ months,
+      // each skipped month still has real data (fixed expenses' paidMonth,
+      // installments' dueDate/paidMonth, dailyExpenses' date) tagged with that
+      // exact month, so it would otherwise be silently dropped from History.
+      // Only count fixed expenses and installments the user marked paid —
+      // unpaid amounts roll forward as overdue rather than retroactively
+      // reducing a closed month's balance. Guarded against a runaway loop from
+      // corrupted currentMonth data.
+      const snapshots = [];
+      let closing = s.currentMonth;
+      let guard = 0;
+      while (closing < nowMonth && guard++ < 240) {
+        snapshots.push({ id: uid(), ...buildMonthSnapshot(s, closing) });
+        closing = nextMonthKey(closing);
+      }
 
       setState(prev => ({
         ...prev,
         currentMonth: nowMonth,
-        history: [snapshot, ...(prev.history || [])],
+        history: [...snapshots.reverse(), ...(prev.history || [])],
       }));
     };
 
@@ -684,35 +687,23 @@ export default function App() {
     [state.debtGroups, monthKey]
   );
 
-  const dailyThisMonth = useMemo(
-    () => dailyTotalForMonth(state.dailyExpenses, monthKey),
-    [state.dailyExpenses, monthKey]
-  );
-
   // Recent distinct descriptions for one-tap re-add in the Add sheet.
   const recentSuggestions = useMemo(
     () => recentDailySuggestions(state.dailyExpenses, 4),
     [state.dailyExpenses]
   );
 
-  const fixedPaidThisMonth = useMemo(
-    () => fixedPaidForMonth(state.fixedExpenses, monthKey),
-    [state.fixedExpenses, monthKey]
+  // Single source of truth for both figures — see state/derive.js for the
+  // formulas and their unit tests.
+  const safeToSpend = useMemo(
+    () => computeSafeToSpend(state, monthKey),
+    [state, monthKey]
   );
 
-  // Overdue still owed (unpaid) plus overdue caught up this month both leave —
-  // or will leave — this month's money, so both reduce safe-to-spend.
-  const safeToSpend =
-    Number(state.settings.salary || 0) -
-    fixedGrand -
-    instTotals.dueThisMonth -
-    (instTotals.overdueUnpaid + instTotals.overduePaidThisMonth) -
-    dailyThisMonth;
-
-  // "Spent" reflects money that has actually left the account: paid fixed bills,
-  // paid installments, and daily expenses. Unpaid commitments still affect the
-  // forward-looking `safeToSpend` but should not inflate the progress bar.
-  const spentThisMonth = fixedPaidThisMonth + instTotals.paidThisMonth + dailyThisMonth;
+  const spentThisMonth = useMemo(
+    () => computeSpentThisMonth(state, monthKey),
+    [state, monthKey]
+  );
 
   // ---------- mutations ----------
   const updateSettings = (patch) =>

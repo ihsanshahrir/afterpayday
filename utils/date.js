@@ -13,6 +13,15 @@ export const currentMonthKey = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
 
+// The "YYYY-MM" immediately after the given one. `mm` from the split is
+// 1-based, so passing it (unadjusted) as the 0-based month arg with day=1
+// lands on the first of the following month.
+export const nextMonthKey = (monthKey) => {
+  const [yyyy, mm] = monthKey.split("-").map(Number);
+  const d = new Date(yyyy, mm, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+
 // Uses startsWith(currentMonthKey()) to avoid timezone off-by-one from
 // Date.parse treating bare YYYY-MM-DD strings as UTC midnight.
 export const isInCurrentMonth = (isoDate) => {
