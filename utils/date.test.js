@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   todayISO,
   currentMonthKey,
+  nextMonthKey,
   isInCurrentMonth,
   isFixedPaidThisMonth,
   isOverdue,
@@ -25,6 +26,14 @@ describe("date keys", () => {
   it("todayISO is YYYY-MM-DD and starts with the current month", () => {
     expect(todayISO()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(todayISO().startsWith(currentMonthKey())).toBe(true);
+  });
+});
+
+describe("nextMonthKey", () => {
+  it("rolls over within and across years", () => {
+    expect(nextMonthKey("2026-04")).toBe("2026-05");
+    expect(nextMonthKey("2026-12")).toBe("2027-01");
+    expect(nextMonthKey("2026-01")).toBe("2026-02");
   });
 });
 
