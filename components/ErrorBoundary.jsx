@@ -1,6 +1,7 @@
 import { Component } from "react";
 import { STORAGE_KEY } from "../state/storage.js";
 import { ONBOARDING_KEY } from "./OnboardingSlides.jsx";
+import { SMART_SCAN_PREF_KEY } from "../utils/ui.js";
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -27,6 +28,7 @@ export default class ErrorBoundary extends Component {
       try {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem(ONBOARDING_KEY);
+        localStorage.removeItem(SMART_SCAN_PREF_KEY);
         sessionStorage.removeItem("afterpayday-splash");
       } catch (_) { /* swallow — best-effort cleanup */ }
       window.location.reload();

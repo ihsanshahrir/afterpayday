@@ -5,7 +5,7 @@ import Collapse from "./Collapse";
 import { importState } from "../state/storage.js";
 import { SHEET_ANIM_MS } from "../utils/ui.js";
 import { CURRENCIES } from "../utils/currencies.js";
-import { DEFAULT_CATEGORIES, CATEGORY_COLORS } from "../utils/categories.js";
+import { DEFAULT_CATEGORIES, CATEGORY_COLORS, makeCustomCategory } from "../utils/categories.js";
 import useFocusTrap from "../hooks/useFocusTrap.js";
 
 export default function SettingsSheet({ settings, onSave, onExport, onExportCSV, onImport }) {
@@ -48,12 +48,9 @@ export default function SettingsSheet({ settings, onSave, onExport, onExportCSV,
   };
 
   const addCat = () => {
-    const label = newCatLabel.trim();
-    if (!label) return;
-    const palette = CATEGORY_COLORS[newCatColor % CATEGORY_COLORS.length];
-    const icon = /^\p{Extended_Pictographic}/u.test(label) ? [...label][0] : "•";
-    const id = `c-${Math.random().toString(36).slice(2, 8)}`;
-    setCats((cs) => [...cs, { id, label: label.slice(0, 24), icon, color: palette.color, bg: palette.bg }]);
+    const category = makeCustomCategory(newCatLabel, newCatColor);
+    if (!category) return;
+    setCats((cs) => [...cs, category]);
     setNewCatLabel("");
   };
 

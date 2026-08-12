@@ -264,18 +264,22 @@ export const importState = (parsed) => {
   }
 };
 
-// Returns true on success, false when localStorage quota is exceeded.
-// Callers should surface a warning to the user on false.
+// Returns true on success, false on any failure to persist (quota exceeded,
+// or private-mode/permission errors some browsers throw on setItem). The
+// caller surfaces a single "storage full" warning for every false — that
+// copy is accurate for the common (quota) case; a non-quota failure is
+// logged here so it's still diagnosable from the console instead of being
+// silently folded into the same message.
 export const saveState = (state) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     return true;
   } catch (e) {
-    if (
+    const isQuotaError =
       e instanceof DOMException &&
-      (e.name === "QuotaExceededError" || e.name === "NS_ERROR_DOM_QUOTA_REACHED")
-    ) {
-      return false;
+      (e.name === "QuotaExceededError" || e.name === "NS_ERROR_DOM_QUOTA_REACHED");
+    if (!isQuotaError) {
+      console.error("[AfterPayday] Failed to save state:", e);
     }
     return false;
   }
