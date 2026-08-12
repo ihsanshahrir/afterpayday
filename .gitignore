@@ -7,6 +7,9 @@ coverage
 .claude
 *.local
 
+# Local planning notes — not part of the shipped app or its docs
+docs/
+
 # Secrets — Smart Scan proxy. .env*.local is covered by *.local above; the
 # Worker's local secret file (worker/.dev.vars) is not, so ignore it explicitly.
 .dev.vars
