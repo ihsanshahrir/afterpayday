@@ -14,6 +14,8 @@ export default function SettingsSheet({ settings, onSave, onExport, onExportCSV,
   const [salary, setSalary] = useState(String(settings.salary || ""));
   const [currency, setCurrency] = useState(settings.currency || "RM");
   const [currencyOpen, setCurrencyOpen] = useState(false);
+  const [catsOpen, setCatsOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
   const [cats, setCats] = useState(() => (Array.isArray(settings.categories) ? settings.categories : []));
   const [newCatLabel, setNewCatLabel] = useState("");
   const [newCatColor, setNewCatColor] = useState(0);
@@ -155,106 +157,126 @@ export default function SettingsSheet({ settings, onSave, onExport, onExportCSV,
         </div>
 
         <div className="field-block" style={{ marginTop: 24 }}>
-          <div className="label">Categories</div>
-          <div className="cat-manager">
-            {DEFAULT_CATEGORIES.map((c) => (
-              <span key={c.id} className="cat-pill" style={{ background: c.bg, color: c.color }}>
-                <span aria-hidden="true">{c.icon}</span> {c.label}
-              </span>
-            ))}
-            {cats.map((c) => (
-              <span key={c.id} className="cat-pill custom" style={{ background: c.bg, color: c.color }}>
-                <span aria-hidden="true">{c.icon}</span> {c.label}
-                <button type="button" onClick={() => removeCat(c.id)} aria-label={`Remove ${c.label}`}>
-                  <X size={11} strokeWidth={2.5} />
-                </button>
-              </span>
-            ))}
-          </div>
-          <div className="cat-add">
-            <div className="cat-colors" role="group" aria-label="Category colour">
-              {CATEGORY_COLORS.map((p, i) => (
-                <button
-                  key={p.color}
-                  type="button"
-                  className={`cat-swatch${newCatColor === i ? " on" : ""}`}
-                  style={{ background: p.color }}
-                  aria-label={`Colour ${i + 1}`}
-                  aria-pressed={newCatColor === i}
-                  onClick={() => setNewCatColor(i)}
-                />
+          <button
+            type="button"
+            className={`label-toggle${catsOpen ? " open" : ""}`}
+            onClick={() => setCatsOpen((o) => !o)}
+            aria-expanded={catsOpen}
+          >
+            Categories
+            <ChevronDown className="label-chev" size={14} strokeWidth={2} />
+          </button>
+          <Collapse open={catsOpen}>
+            <div className="cat-manager">
+              {DEFAULT_CATEGORIES.map((c) => (
+                <span key={c.id} className="cat-pill" style={{ background: c.bg, color: c.color }}>
+                  <span aria-hidden="true">{c.icon}</span> {c.label}
+                </span>
+              ))}
+              {cats.map((c) => (
+                <span key={c.id} className="cat-pill custom" style={{ background: c.bg, color: c.color }}>
+                  <span aria-hidden="true">{c.icon}</span> {c.label}
+                  <button type="button" onClick={() => removeCat(c.id)} aria-label={`Remove ${c.label}`}>
+                    <X size={11} strokeWidth={2.5} />
+                  </button>
+                </span>
               ))}
             </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              <input
-                className="glass-input"
-                style={{ flex: 1 }}
-                value={newCatLabel}
-                onChange={(e) => setNewCatLabel(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addCat()}
-                placeholder="New category (e.g. 🛒 Groceries)"
-                aria-label="New category name"
-              />
-              <button type="button" className="glass-btn-secondary" onClick={addCat} disabled={!newCatLabel.trim()}>
-                Add
-              </button>
+            <div className="cat-add">
+              <div className="cat-colors" role="group" aria-label="Category colour">
+                {CATEGORY_COLORS.map((p, i) => (
+                  <button
+                    key={p.color}
+                    type="button"
+                    className={`cat-swatch${newCatColor === i ? " on" : ""}`}
+                    style={{ background: p.color }}
+                    aria-label={`Colour ${i + 1}`}
+                    aria-pressed={newCatColor === i}
+                    onClick={() => setNewCatColor(i)}
+                  />
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <input
+                  className="glass-input"
+                  style={{ flex: 1 }}
+                  value={newCatLabel}
+                  onChange={(e) => setNewCatLabel(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addCat()}
+                  placeholder="New category (e.g. 🛒 Groceries)"
+                  aria-label="New category name"
+                />
+                <button type="button" className="glass-btn-secondary" onClick={addCat} disabled={!newCatLabel.trim()}>
+                  Add
+                </button>
+              </div>
             </div>
-          </div>
+          </Collapse>
         </div>
 
         <div className="field-block" style={{ marginTop: 24 }}>
-          <div className="label">Backup</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              className="glass-btn-secondary"
-              style={{ flex: 1 }}
-              onClick={onExport}
-            >
-              Export
-            </button>
-            <button
-              type="button"
-              className="glass-btn-secondary"
-              style={{ flex: 1 }}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              Import
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json,application/json"
-              style={{ display: "none" }}
-              onChange={handleImportFile}
-            />
-          </div>
-          {onExportCSV && (
-            <button
-              type="button"
-              className="glass-btn-secondary"
-              style={{ width: "100%", marginTop: 8 }}
-              onClick={onExportCSV}
-            >
-              Export spending (CSV)
-            </button>
-          )}
-          {importError && (
-            <div
-              role="alert"
-              style={{
-                marginTop: 8,
-                padding: "10px 12px",
-                borderRadius: 12,
-                background: "rgba(244,63,94,0.10)",
-                border: "1px solid rgba(244,63,94,0.30)",
-                font: "500 12px var(--font)",
-                color: "var(--rose)",
-              }}
-            >
-              {importError}
+          <button
+            type="button"
+            className={`label-toggle${backupOpen ? " open" : ""}`}
+            onClick={() => setBackupOpen((o) => !o)}
+            aria-expanded={backupOpen}
+          >
+            Backup
+            <ChevronDown className="label-chev" size={14} strokeWidth={2} />
+          </button>
+          <Collapse open={backupOpen}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                className="glass-btn-secondary"
+                style={{ flex: 1 }}
+                onClick={onExport}
+              >
+                Export
+              </button>
+              <button
+                type="button"
+                className="glass-btn-secondary"
+                style={{ flex: 1 }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Import
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,application/json"
+                style={{ display: "none" }}
+                onChange={handleImportFile}
+              />
             </div>
-          )}
+            {onExportCSV && (
+              <button
+                type="button"
+                className="glass-btn-secondary"
+                style={{ width: "100%", marginTop: 8 }}
+                onClick={onExportCSV}
+              >
+                Export spending (CSV)
+              </button>
+            )}
+            {importError && (
+              <div
+                role="alert"
+                style={{
+                  marginTop: 8,
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  background: "rgba(244,63,94,0.10)",
+                  border: "1px solid rgba(244,63,94,0.30)",
+                  font: "500 12px var(--font)",
+                  color: "var(--rose)",
+                }}
+              >
+                {importError}
+              </div>
+            )}
+          </Collapse>
         </div>
 
         {onOpenAccount && (
