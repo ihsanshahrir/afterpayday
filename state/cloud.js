@@ -33,7 +33,10 @@ export function onAuthChange(callback) {
 export async function signInWithGoogle() {
   const sb = await getSupabase();
   const redirectTo = window.location.origin + import.meta.env.BASE_URL;
-  const { error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo, queryParams: { prompt: "select_account" } },
+  });
   if (error) throw error;
 }
 
