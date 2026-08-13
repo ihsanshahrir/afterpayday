@@ -21,6 +21,7 @@ AfterPayday takes your monthly salary, subtracts your fixed bills and debt insta
 - **Undo** — 5-second undo window after any deletion
 - **Export / Import** — full JSON backup and restore
 - **Cloud sync** *(optional)* — sign in with Google to back up and sync across devices; see [`supabase/README.md`](./supabase/README.md). Skip it entirely and the app is unchanged — no account UI, no network calls
+- **Conflict resolution** — if two devices edit offline and diverge, sync surfaces a review sheet to pick which version wins instead of silently merging or overwriting
 - **Onboarding** — guided first-run walkthrough
 
 ---
@@ -124,4 +125,4 @@ Then merge to `main`; the deploy workflow builds and publishes.
 
 ## License
 
-MIT
+[MIT](./LICENSE)
