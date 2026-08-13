@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
+import { SHEET_ANIM_MS } from "../utils/ui.js";
+import useFocusTrap from "../hooks/useFocusTrap.js";
 
 const countEntries = (s) => {
   if (!s || typeof s !== "object") return 0;
@@ -16,11 +19,28 @@ const formatWhen = (value) => {
   return d.toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 };
 
-// Forces an explicit choice — a whole-state document can't be safely
-// auto-merged, so the app blocks (no scrim/Escape dismiss) until the user
-// picks a side. Rendered by App whenever useCloudSync reports a conflict.
-export default function ConflictSheet({ conflict, localState, lastSyncedAt, onResolve }) {
+// A whole-state document can't be safely auto-merged, so this asks for an
+// explicit choice. Opened on demand from Settings → Account (not forced on
+// load — see useCloudSync's reconcile, which only surfaces this when the
+// device has genuine unpushed edits that diverge from the cloud), so unlike
+// other sheets in the app it's fine to let the user back out via
+// scrim/Escape/close — the conflict just stays pending until they resolve it.
+export default function ConflictSheet({ conflict, localState, lastSyncedAt, onResolve, onClose }) {
   const [busy, setBusy] = useState(null); // "cloud" | "device" | null
+  const [isOpen, setIsOpen] = useState(false);
+  const sheetRef = useRef(null);
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setIsOpen(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const close = () => {
+    setIsOpen(false);
+    setTimeout(onClose, SHEET_ANIM_MS);
+  };
+
+  useFocusTrap(sheetRef, { active: isOpen, onEscape: close });
 
   const remoteDoc = conflict?.remote?.doc;
   const cloudCount = countEntries(remoteDoc);
@@ -33,9 +53,10 @@ export default function ConflictSheet({ conflict, localState, lastSyncedAt, onRe
 
   return (
     <>
-      <div className="scrim on" />
+      <div className={`scrim${isOpen ? " on" : ""}`} onClick={close} />
       <div
-        className="sheet on"
+        ref={sheetRef}
+        className={`sheet${isOpen ? " on" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label="Sync conflict"
@@ -47,6 +68,9 @@ export default function ConflictSheet({ conflict, localState, lastSyncedAt, onRe
             <div className="eyebrow-sm">Cloud sync</div>
             <h3>Which data do you want to keep?</h3>
           </div>
+          <button className="close-btn" onClick={close} aria-label="Close">
+            <X size={15} strokeWidth={1.75} />
+          </button>
         </div>
 
         <div style={{ font: "400 13px/1.5 var(--font)", color: "var(--fg-3)", marginBottom: 20 }}>

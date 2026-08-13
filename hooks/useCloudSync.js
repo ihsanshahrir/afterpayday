@@ -67,6 +67,30 @@ export default function useCloudSync({ state, onRemoteState }) {
   const dirtyRef = useRef(false);
   const pushTimerRef = useRef(null);
   const pushingRef = useRef(false);
+  // Tracks the `state` identity the debounced-push effect last saw, so it
+  // can tell "state actually changed" apart from "this effect re-ran because
+  // session/conflict changed identity" (e.g. sign-in resolving) — the latter
+  // used to be misread as a local edit and made every reload look dirty.
+  const prevStateRef = useRef(state);
+  // Set right before a pull-driven state replacement (adoptCloud) so the
+  // resulting re-render isn't itself mistaken for a local edit that needs
+  // pushing back.
+  const skipNextDirtyRef = useRef(false);
+
+  const adoptCloud = useCallback((userId, remote) => {
+    const normalized = importState(remote.doc);
+    revRef.current = remote.rev;
+    dirtyRef.current = false;
+    const meta = { userId, rev: remote.rev, lastPushedAt: Date.now() };
+    writeSyncMeta(meta);
+    setLastSyncedAt(meta.lastPushedAt);
+    setConflictBoth(null);
+    setStatus("synced");
+    if (normalized) {
+      skipNextDirtyRef.current = true;
+      onRemoteState(normalized);
+    }
+  }, [onRemoteState]);
 
   const reconcile = useCallback(async (userId) => {
     setStatus("syncing");
@@ -97,16 +121,22 @@ export default function useCloudSync({ state, onRemoteState }) {
         setStatus("synced");
         return;
       }
-      // Cloud data exists and either this device has no confirmed matching
-      // revision or has unpushed local edits — never auto-merge a
-      // whole-state document, let the user choose.
+      if (!dirtyRef.current) {
+        // This device has no unpushed edits, so there's nothing local to
+        // lose — cloud is authoritative the moment the user is signed in.
+        adoptCloud(userId, remote);
+        return;
+      }
+      // This device has genuine unpushed edits that diverge from the cloud —
+      // never auto-merge a whole-state document. Surface it via `status` /
+      // `conflict` only; the user resolves it explicitly from Settings.
       setConflictBoth({ remote });
       setStatus("conflict");
     } catch (e) {
       setErrorMessage(e?.message || "Sync failed");
       setStatus("error");
     }
-  }, []);
+  }, [adoptCloud]);
 
   // Auth bootstrap + subscription.
   useEffect(() => {
@@ -177,9 +207,19 @@ export default function useCloudSync({ state, onRemoteState }) {
     }
   }, []);
 
-  // Debounced push whenever the app state changes while signed in.
+  // Debounced push whenever the app state changes while signed in. Keyed on
+  // [state, session, conflict] so it re-evaluates when any of them change,
+  // but only a real `state` change should count as a local edit — session
+  // resolving from null to a real session (on every app boot) or a conflict
+  // clearing must not themselves be read as "the user edited something".
   useEffect(() => {
-    if (!SYNC_AVAILABLE || !session || conflict) return undefined;
+    const stateChanged = prevStateRef.current !== state;
+    prevStateRef.current = state;
+    if (!SYNC_AVAILABLE || !session || conflict || !stateChanged) return undefined;
+    if (skipNextDirtyRef.current) {
+      skipNextDirtyRef.current = false;
+      return undefined;
+    }
     dirtyRef.current = true;
     if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
     pushTimerRef.current = setTimeout(flushPush, PUSH_DEBOUNCE_MS);
@@ -223,15 +263,7 @@ export default function useCloudSync({ state, onRemoteState }) {
     const current = conflictRef.current;
     if (!current || !sessionRef.current) return;
     if (choice === "cloud") {
-      const normalized = importState(current.remote.doc);
-      revRef.current = current.remote.rev;
-      dirtyRef.current = false;
-      const meta = { userId: sessionRef.current.user.id, rev: current.remote.rev, lastPushedAt: Date.now() };
-      writeSyncMeta(meta);
-      setLastSyncedAt(meta.lastPushedAt);
-      setConflictBoth(null);
-      setStatus("synced");
-      if (normalized) onRemoteState(normalized);
+      adoptCloud(sessionRef.current.user.id, current.remote);
     } else {
       // Keep this device: overwrite the cloud with local, using the known
       // remote rev so the CAS write succeeds.
@@ -239,7 +271,7 @@ export default function useCloudSync({ state, onRemoteState }) {
       setConflictBoth(null);
       flushPush();
     }
-  }, [onRemoteState, flushPush]);
+  }, [adoptCloud, flushPush]);
 
   const signOut = useCallback(async () => {
     await cloud.signOut();
