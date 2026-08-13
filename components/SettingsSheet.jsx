@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { X, ChevronDown } from "lucide-react";
 import WheelColumn from "./WheelColumn";
 import Collapse from "./Collapse";
+import VersionTag from "./VersionTag";
 import { importState } from "../state/storage.js";
 import { SHEET_ANIM_MS } from "../utils/ui.js";
 import { CURRENCIES } from "../utils/currencies.js";
@@ -259,6 +260,8 @@ export default function SettingsSheet({ settings, onSave, onExport, onExportCSV,
         <div className="sheet-actions" style={{ marginTop: 20 }}>
           <button className="btn-primary" onClick={save}>Save</button>
         </div>
+
+        <VersionTag />
       </div>
     </>
   );

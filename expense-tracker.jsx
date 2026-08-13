@@ -39,6 +39,7 @@ import Commitments from "./components/Commitments.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
 import HistorySheet from "./components/HistorySheet.jsx";
 import useFocusTrap from "./hooks/useFocusTrap.js";
+import useAppUpdate from "./hooks/useAppUpdate.js";
 
 // Whether the AI proxy is configured for this build. When false, Smart Scan is
 // hidden entirely and scanning stays 100% on-device (Tesseract).
@@ -542,6 +543,7 @@ export default function App() {
   const [addSheet, setAddSheet] = useState(null);
   const [undo, setUndo] = useState(null); // { snapshot, label } | null
   const undoTimerRef = useRef(null);
+  const { updateReady, applyUpdate } = useAppUpdate();
 
   useEffect(() => {
     navigator.storage?.persist?.();
@@ -1112,6 +1114,26 @@ export default function App() {
                 className="shrink-0 font-semibold text-red-200 hover:text-white"
               >
                 Export backup
+              </button>
+            </div>
+          </div>
+        )}
+
+        {updateReady && (
+          <div
+            className="fixed left-0 right-0 z-40 mx-auto max-w-md px-4"
+            style={{ bottom: "calc(152px + env(safe-area-inset-bottom))" }}
+          >
+            <div
+              role="status"
+              className="flex items-center justify-between gap-3 rounded-xl border border-neutral-700/60 bg-neutral-900/95 px-4 py-3 text-sm text-neutral-200 shadow-lg backdrop-blur"
+            >
+              <span>New version ready</span>
+              <button
+                onClick={applyUpdate}
+                className="shrink-0 font-semibold text-emerald-400 hover:text-emerald-300"
+              >
+                Reload
               </button>
             </div>
           </div>

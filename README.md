@@ -88,6 +88,19 @@ AfterPayday is a fully offline-capable Progressive Web App. Install it to your h
 
 ---
 
+## Releasing
+
+Settings shows the app's current version number. To release:
+
+```bash
+npm version patch|minor|major
+git push --follow-tags
+```
+
+Then merge to `main`; the deploy workflow builds and publishes.
+
+---
+
 ## Project Structure
 
 ```
