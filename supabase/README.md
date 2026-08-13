@@ -30,27 +30,31 @@ guesses.
    enabled and a policy restricting every row to `auth.uid() = user_id` — the
    database enforces isolation, not any code this app ships.
 
-3. **Enable email OTP** (should be on by default): Authentication → Providers
-   → Email. This app signs in with a 6-digit code, not a magic link — a magic
-   link opens the system browser instead of the installed PWA, which breaks
-   the standalone-window flow.
+3. **Create a Google OAuth client** in the
+   [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
+   - Create a project (or reuse one), then **Create Credentials** → **OAuth
+     client ID** → Application type **Web application**.
+   - Under **Authorized redirect URIs**, add your Supabase callback URL:
+     `https://YOUR-PROJECT-REF.supabase.co/auth/v1/callback` (find the exact
+     value on the Google provider settings page in Supabase, described next —
+     it shows you this URL directly).
+   - Save, then copy the generated **Client ID** and **Client secret**.
 
-4. **Put the code in the email templates** (Authentication → Email
-   Templates) — **required**, easy to miss. Supabase's default templates
-   only include `{{ .ConfirmationURL }}` (a link), not `{{ .Token }}` (the
-   code), even though the client calls `signInWithOtp`. Edit both **Confirm
-   signup** (used the first time an email signs in) and **Magic Link** (used
-   every time after) to surface the code, e.g.:
-   ```html
-   <h2>Your AfterPayday sign-in code</h2>
-   <h1>{{ .Token }}</h1>
-   ```
-   Skip this and users get a link that opens the system browser instead of a
-   code they can type into the app — the exact problem step 3 exists to avoid.
+4. **Enable Google** in Supabase: Authentication → Providers → Google. Paste
+   the Client ID and Client secret from step 3, then enable the provider.
 
 5. **Set the Site URL / redirect allowlist** (Authentication → URL
    Configuration) to your deployed origin, e.g.
-   `https://yourname.github.io/afterpayday/`.
+   `https://yourname.github.io/afterpayday/`. This is where Google sends the
+   user back to after they approve sign-in.
+
+Google OAuth (not email) is the sign-in method here specifically because it
+avoids the exact problem a magic-link email has: tapping a link from the Mail
+app always opens the system browser, not the installed PWA, since a
+different app is handling the tap. OAuth is triggered by a button *inside*
+the already-open PWA — the whole redirect to Google and back is a same-window
+top-level navigation, so it never hands off to a separate app or browser
+context.
 
 ## Wire it into the app
 

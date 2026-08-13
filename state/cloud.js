@@ -26,17 +26,15 @@ export function onAuthChange(callback) {
   };
 }
 
-export async function sendCode(email) {
+// Redirects the current window to Google's consent screen and back — this is
+// a same-window top-level navigation triggered by a tap inside the already-
+// open PWA, not a link opened from another app, so it doesn't have the
+// magic-link problem of breaking out to a separate browser context.
+export async function signInWithGoogle() {
   const sb = await getSupabase();
-  const { error } = await sb.auth.signInWithOtp({ email });
+  const redirectTo = window.location.origin + import.meta.env.BASE_URL;
+  const { error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
   if (error) throw error;
-}
-
-export async function verifyCode(email, token) {
-  const sb = await getSupabase();
-  const { data, error } = await sb.auth.verifyOtp({ email, token, type: "email" });
-  if (error) throw error;
-  return data.session;
 }
 
 export async function signOut() {

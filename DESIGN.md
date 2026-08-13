@@ -27,7 +27,7 @@ Non-goals: multi-currency conversion, bank integrations, budgeting categories, a
 | Icons | lucide-react | Tree-shakeable, consistent stroke style |
 | Persistence | localStorage | Synchronous, sufficient for single-user data sizes |
 | Hosting | Netlify | Branch deploy previews; static-only output |
-| Cloud sync *(optional)* | Supabase (Postgres + Auth + RLS) | Free tier covers Postgres, email-OTP auth, and row-level isolation without server code of our own; a hosted backend is required regardless since GitHub Pages is static |
+| Cloud sync *(optional)* | Supabase (Postgres + Auth + RLS) | Free tier covers Postgres, Google OAuth, and row-level isolation without server code of our own; a hosted backend is required regardless since GitHub Pages is static |
 
 No backend, no database, and no authentication are required — cloud sync is opt-in on top, never a dependency of the core app.
 
@@ -117,7 +117,8 @@ logic — and covers every delete uniformly.
 
 ### Cloud sync (optional, `state/cloud.js`, `hooks/useCloudSync.js`)
 
-Signing in (email OTP, not a magic link — see `supabase/README.md`) mirrors
+Signing in (Google OAuth, not email — see `supabase/README.md` for why)
+mirrors
 the whole state doc to a single Supabase row per user, guarded by Row Level
 Security. A push is a compare-and-swap on a `rev` counter
 (`.eq('rev', expectedRev)`); zero rows updated means another device wrote

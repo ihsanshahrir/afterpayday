@@ -13,8 +13,7 @@ vi.mock("../state/cloud.js", () => ({
   onAuthChange: vi.fn(() => () => {}),
   pullState: vi.fn(),
   pushState: vi.fn(),
-  sendCode: vi.fn(),
-  verifyCode: vi.fn(),
+  signInWithGoogle: vi.fn(),
   signOut: vi.fn(),
 }));
 
