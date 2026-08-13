@@ -2,15 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { SHEET_ANIM_MS } from "../utils/ui.js";
 import useFocusTrap from "../hooks/useFocusTrap.js";
-
-const countEntries = (s) => {
-  if (!s || typeof s !== "object") return 0;
-  const daily = Array.isArray(s.dailyExpenses) ? s.dailyExpenses.length : 0;
-  const fixed = Array.isArray(s.fixedExpenses) ? s.fixedExpenses.length : 0;
-  const installments = (Array.isArray(s.debtGroups) ? s.debtGroups : [])
-    .reduce((sum, g) => sum + (Array.isArray(g?.installments) ? g.installments.length : 0), 0);
-  return daily + fixed + installments;
-};
+import { stateEntryCount } from "../state/derive.js";
 
 const formatWhen = (value) => {
   if (!value) return "unknown";
@@ -43,8 +35,8 @@ export default function ConflictSheet({ conflict, localState, lastSyncedAt, onRe
   useFocusTrap(sheetRef, { active: isOpen, onEscape: close });
 
   const remoteDoc = conflict?.remote?.doc;
-  const cloudCount = countEntries(remoteDoc);
-  const deviceCount = countEntries(localState);
+  const cloudCount = stateEntryCount(remoteDoc);
+  const deviceCount = stateEntryCount(localState);
 
   const choose = (choice) => {
     setBusy(choice);

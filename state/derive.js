@@ -6,6 +6,20 @@
 // Date filtering uses ISO-string prefix matching, mirroring utils/date.js,
 // to stay timezone-safe.
 
+// Counts real user entries in a state doc (daily expenses, fixed expenses,
+// installments) — used to tell "this device genuinely has nothing to lose"
+// apart from "this device has data that was never synced", e.g. when
+// deciding whether a first-time sign-in should silently adopt the cloud
+// or ask before overwriting local data.
+export const stateEntryCount = (s) => {
+  if (!s || typeof s !== "object") return 0;
+  const daily = Array.isArray(s.dailyExpenses) ? s.dailyExpenses.length : 0;
+  const fixed = Array.isArray(s.fixedExpenses) ? s.fixedExpenses.length : 0;
+  const installments = (Array.isArray(s.debtGroups) ? s.debtGroups : [])
+    .reduce((sum, g) => sum + (Array.isArray(g?.installments) ? g.installments.length : 0), 0);
+  return daily + fixed + installments;
+};
+
 // Amounts are stored positive; `kind` records direction. A refund is money
 // coming back in, so it counts negative against spending totals.
 export const signedDailyAmount = (e) =>
