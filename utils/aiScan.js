@@ -55,6 +55,11 @@ export function clampScanResult(raw) {
     typeof r.description === "string"
       ? r.description.replace(CONTROL_CHARS_RE, " ").replace(/\s+/g, " ").trim()
       : "";
+  // Strip a leading formula-trigger character (=, +, -, @) — a scanned receipt
+  // is untrusted input, and this field can later be exported to CSV and opened
+  // in spreadsheet software, where such a prefix would be evaluated as a
+  // formula (CSV/formula injection, CWE-1236) rather than shown as text.
+  description = description.replace(/^[=+\-@]+/, "").trim();
   if (description.length > MAX_DESC) description = description.slice(0, MAX_DESC).trim();
 
   const category = ALLOWED_CATEGORIES.has(r.category) ? r.category : "other";

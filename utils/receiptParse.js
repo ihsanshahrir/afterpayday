@@ -147,6 +147,11 @@ const SKIP_LINE_RE = /receipt|invoice|tax\s*inv|\bgst\b|\bsst\b|\btel\b|tel[:.]|
 
 const cleanMerchant = (line) => {
   let out = line.replace(/[*_=|]{2,}/g, " ").replace(/\s{2,}/g, " ").trim();
+  // Strip a leading formula-trigger character (=, +, -, @) — the scanned text
+  // is untrusted, and this value can later be exported to CSV and opened in
+  // spreadsheet software, where such a prefix would be evaluated as a formula
+  // (CSV/formula injection, CWE-1236) rather than shown as text.
+  out = out.replace(/^[=+\-@]+/, "").trim();
   // Receipts often print the name in all-caps; title-case it for readability,
   // but leave mixed-case names (e.g. "McDonald's") untouched.
   if (out && out === out.toUpperCase()) {

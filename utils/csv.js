@@ -9,9 +9,14 @@ const COLUMNS = [
 ];
 
 // RFC-4180 style escaping: wrap in quotes and double any embedded quote when the
-// value contains a comma, quote, or newline.
+// value contains a comma, quote, or newline. Also guards against CSV/formula
+// injection (CWE-1236): a field starting with =, +, -, @, tab, or CR gets a
+// leading apostrophe so spreadsheet apps (Excel, Sheets, LibreOffice) treat it
+// as text instead of evaluating it as a formula — relevant because description/
+// merchant can originate from a scanned receipt someone else handed the user.
 const esc = (v) => {
-  const s = v == null ? "" : String(v);
+  let s = v == null ? "" : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
