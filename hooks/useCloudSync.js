@@ -77,6 +77,14 @@ export default function useCloudSync({ state, onRemoteState }) {
   // pushing back.
   const skipNextDirtyRef = useRef(false);
 
+  // Read via ref rather than closed over directly, so adoptCloud (and
+  // reconcile, which depends on it) stay referentially stable even if the
+  // caller passes a non-memoized onRemoteState — reconcile's identity feeds
+  // the auth-bootstrap effect's deps, and reconcile firing an extra time on
+  // every unrelated re-render raced against the debounced push below.
+  const onRemoteStateRef = useRef(onRemoteState);
+  useEffect(() => { onRemoteStateRef.current = onRemoteState; }, [onRemoteState]);
+
   const adoptCloud = useCallback((userId, remote) => {
     const normalized = importState(remote.doc);
     revRef.current = remote.rev;
@@ -88,9 +96,9 @@ export default function useCloudSync({ state, onRemoteState }) {
     setStatus("synced");
     if (normalized) {
       skipNextDirtyRef.current = true;
-      onRemoteState(normalized);
+      onRemoteStateRef.current(normalized);
     }
-  }, [onRemoteState]);
+  }, []);
 
   const reconcile = useCallback(async (userId) => {
     setStatus("syncing");
