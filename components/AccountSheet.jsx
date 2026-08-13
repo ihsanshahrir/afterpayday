@@ -22,7 +22,7 @@ const formatSyncedAt = (ts) => {
   return new Date(ts).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 };
 
-export default function AccountSheet({ cloud, onClose, onWipeLocal }) {
+export default function AccountSheet({ cloud, onClose, onWipeLocal, onReviewConflict }) {
   const [isOpen, setIsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState(null);
@@ -111,6 +111,31 @@ export default function AccountSheet({ cloud, onClose, onWipeLocal }) {
                 </div>
               )}
             </div>
+
+            {cloud.status === "conflict" && (
+              <div
+                className="field-block"
+                style={{
+                  marginTop: 24, padding: "14px 16px", borderRadius: "var(--r-lg)",
+                  background: "rgba(252,211,77,0.10)", border: "1px solid rgba(252,211,77,0.30)",
+                }}
+              >
+                <div style={{ font: "600 13px var(--font)", color: "var(--fg)", marginBottom: 4 }}>
+                  This device and your cloud backup have diverged
+                </div>
+                <div style={{ font: "500 12px/1.5 var(--font)", color: "var(--fg-3)" }}>
+                  You have edits here that haven&apos;t synced. Pick which data to keep.
+                </div>
+                <button
+                  type="button"
+                  className="glass-btn-primary"
+                  style={{ width: "100%", marginTop: 10 }}
+                  onClick={onReviewConflict}
+                >
+                  Review conflict
+                </button>
+              </div>
+            )}
 
             <div className="field-block" style={{ marginTop: 24 }}>
               <button

@@ -9,6 +9,9 @@ import {
   Loader2,
   ChevronDown,
   Plus,
+  CloudOff,
+  CloudCheck,
+  CloudAlert,
 } from "lucide-react";
 import { uid } from "./utils/id.js";
 import { todayISO, currentMonthKey, nextMonthKey, isFixedPaidThisMonth, monthLabel, fmtDate } from "./utils/date.js";
@@ -47,6 +50,18 @@ import useCloudSync from "./hooks/useCloudSync.js";
 // Whether the AI proxy is configured for this build. When false, Smart Scan is
 // hidden entirely and scanning stays 100% on-device (Tesseract).
 const SMART_SCAN_AVAILABLE = Boolean(SCAN_PROXY_URL);
+
+// At-a-glance cloud sync status for the header icon. "signed-out" also
+// covers guests (cloud sync available but not signed in) — everything else
+// mirrors useCloudSync's status machine.
+const CLOUD_STATUS_META = {
+  "signed-out": { Icon: CloudOff, color: "var(--fg-3)", label: "Local only — tap to sign in" },
+  syncing: { Icon: Loader2, color: "var(--fg-3)", label: "Syncing…", spin: true },
+  synced: { Icon: CloudCheck, color: "var(--emerald)", label: "Synced to cloud" },
+  offline: { Icon: CloudOff, color: "var(--amber)", label: "Offline — will sync when back online" },
+  error: { Icon: CloudAlert, color: "var(--rose)", label: "Sync error — tap for details" },
+  conflict: { Icon: CloudAlert, color: "var(--amber)", label: "Sync conflict — tap to resolve" },
+};
 
 const readSmartScanPref = () => {
   try {
@@ -540,6 +555,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
+  const [showConflictSheet, setShowConflictSheet] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(ONBOARDING_KEY));
   const [storageError, setStorageError] = useState(false);
   // null when closed; { editing } when open — editing is the row being edited
@@ -965,6 +981,19 @@ export default function App() {
             <button className="iconbtn" onClick={() => setShowHistory(true)} aria-label="History">
               <History size={16} strokeWidth={1.75} />
             </button>
+            {cloud.available && (
+              <button
+                className="iconbtn"
+                onClick={() => setShowAccount(true)}
+                aria-label={CLOUD_STATUS_META[cloud.email ? cloud.status : "signed-out"].label}
+                style={{ color: CLOUD_STATUS_META[cloud.email ? cloud.status : "signed-out"].color }}
+              >
+                {(() => {
+                  const { Icon, spin } = CLOUD_STATUS_META[cloud.email ? cloud.status : "signed-out"];
+                  return <Icon size={16} strokeWidth={1.75} className={spin ? "spin" : undefined} />;
+                })()}
+              </button>
+            )}
             <button className="iconbtn" onClick={() => setShowSettings(true)} aria-label="Settings">
               <SettingsIcon size={16} strokeWidth={1.75} />
             </button>
@@ -1118,15 +1147,20 @@ export default function App() {
             cloud={cloud}
             onClose={() => setShowAccount(false)}
             onWipeLocal={handleWipeLocal}
+            onReviewConflict={() => setShowConflictSheet(true)}
           />
         )}
 
-        {cloud.conflict && (
+        {showConflictSheet && cloud.conflict && (
           <ConflictSheet
             conflict={cloud.conflict}
             localState={state}
             lastSyncedAt={cloud.lastSyncedAt}
-            onResolve={cloud.resolveConflict}
+            onResolve={(choice) => {
+              cloud.resolveConflict(choice);
+              setShowConflictSheet(false);
+            }}
+            onClose={() => setShowConflictSheet(false)}
           />
         )}
 
