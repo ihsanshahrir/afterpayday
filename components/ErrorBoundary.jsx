@@ -29,6 +29,9 @@ export default class ErrorBoundary extends Component {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem(ONBOARDING_KEY);
         localStorage.removeItem(SMART_SCAN_PREF_KEY);
+        localStorage.removeItem("afterpayday:sync");
+        localStorage.removeItem("afterpayday:auth");
+        localStorage.removeItem("afterpayday:device");
         sessionStorage.removeItem("afterpayday-splash");
       } catch (_) { /* swallow — best-effort cleanup */ }
       window.location.reload();

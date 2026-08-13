@@ -9,7 +9,7 @@ import { CURRENCIES } from "../utils/currencies.js";
 import { DEFAULT_CATEGORIES, CATEGORY_COLORS, makeCustomCategory } from "../utils/categories.js";
 import useFocusTrap from "../hooks/useFocusTrap.js";
 
-export default function SettingsSheet({ settings, onSave, onExport, onExportCSV, onImport }) {
+export default function SettingsSheet({ settings, onSave, onExport, onExportCSV, onImport, onOpenAccount, cloudEmail }) {
   const [isOpen, setIsOpen] = useState(false);
   const [salary, setSalary] = useState(String(settings.salary || ""));
   const [currency, setCurrency] = useState(settings.currency || "RM");
@@ -256,6 +256,20 @@ export default function SettingsSheet({ settings, onSave, onExport, onExportCSV,
             </div>
           )}
         </div>
+
+        {onOpenAccount && (
+          <div className="field-block" style={{ marginTop: 24 }}>
+            <div className="label">Cloud sync</div>
+            <button
+              type="button"
+              className="glass-btn-secondary"
+              style={{ width: "100%" }}
+              onClick={onOpenAccount}
+            >
+              {cloudEmail ? `Account · ${cloudEmail}` : "Sign in to sync"}
+            </button>
+          </div>
+        )}
 
         <div className="sheet-actions" style={{ marginTop: 20 }}>
           <button className="btn-primary" onClick={save}>Save</button>

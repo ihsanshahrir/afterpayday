@@ -7,11 +7,12 @@ A mobile-first, offline-capable personal expense tracker built as a Progressive 
 ## Goals
 
 1. **Single-glance clarity.** The dashboard answers one question: *how much can I spend for the rest of this month?*
-2. **Zero friction.** Quick-add expense in two taps; persists locally with no account or sync.
+2. **Zero friction.** Quick-add expense in two taps; persists locally, no account required.
 3. **Offline-first.** Installable PWA; works on a plane.
 4. **Resilient.** Survives storage quota errors, render crashes, and month boundaries without user intervention.
+5. **Local-first, cloud-optional.** An account only ever adds cloud backup and multi-device sync on top of the local copy — it never becomes the primary store, and signing out leaves the local experience unchanged.
 
-Non-goals: multi-device sync, multi-currency conversion, bank integrations, budgeting categories, analytics.
+Non-goals: multi-currency conversion, bank integrations, budgeting categories, analytics, telemetry.
 
 ---
 
@@ -26,8 +27,9 @@ Non-goals: multi-device sync, multi-currency conversion, bank integrations, budg
 | Icons | lucide-react | Tree-shakeable, consistent stroke style |
 | Persistence | localStorage | Synchronous, sufficient for single-user data sizes |
 | Hosting | Netlify | Branch deploy previews; static-only output |
+| Cloud sync *(optional)* | Supabase (Postgres + Auth + RLS) | Free tier covers Postgres, email-OTP auth, and row-level isolation without server code of our own; a hosted backend is required regardless since GitHub Pages is static |
 
-No backend, no database, no authentication.
+No backend, no database, and no authentication are required — cloud sync is opt-in on top, never a dependency of the core app.
 
 ---
 
@@ -112,6 +114,21 @@ Deletes (daily expense, fixed expense, installment, debt group) snapshot the
 **entire** previous state and surface a 5-second "Undo" toast. Whole-state undo
 keeps restoration trivially correct — no per-entity re-insertion or ordering
 logic — and covers every delete uniformly.
+
+### Cloud sync (optional, `state/cloud.js`, `hooks/useCloudSync.js`)
+
+Signing in (email OTP, not a magic link — see `supabase/README.md`) mirrors
+the whole state doc to a single Supabase row per user, guarded by Row Level
+Security. A push is a compare-and-swap on a `rev` counter
+(`.eq('rev', expectedRev)`); zero rows updated means another device wrote
+first, and the app opens `ConflictSheet` rather than guessing which side
+wins. Every value pulled from the cloud is run through the same
+`importState()` normalizer the Import-backup flow uses, and a doc whose
+`_version` is newer than this build's `CURRENT_VERSION` is refused rather
+than imported, so an old build can't silently downgrade a newer account's
+data after a staggered deploy. `saveState(state)` (local) always runs before
+the sync hook sees a change — cloud is strictly downstream of local, never in
+front of it.
 
 ### Time handling (`utils/date.js`)
 
@@ -260,7 +277,7 @@ The nav's explicit `minHeight` prevents layout shift when iOS recalculates the v
 
 ### Service worker
 
-- `registerType: 'autoUpdate'` — Workbox checks for new SW on every navigation; old clients update silently within minutes.
+- `registerType: 'prompt'` — Workbox checks for new SW on every navigation, but the client waits and surfaces a "new version ready" toast (`hooks/useAppUpdate.js`) rather than reloading silently; the user controls when the reload happens.
 - Precaches all built JS/CSS/HTML/PNG/SVG/WOFF2.
 - The OCR engine under `public/tesseract/` is excluded from precache (`globIgnores`) and instead served `CacheFirst` at runtime, so the ~13 MB of wasm/model is fetched lazily on the first scan and then available offline — without bloating the initial install.
 - No runtime caching of API calls (there are none).
@@ -291,6 +308,18 @@ Total state is small (kilobytes). Splitting into multiple `useState` or contexts
 ### Why ref-driven rollover effect?
 
 If the effect depended on `state`, it would re-run on every mutation, with an internal guard to no-op when the month hadn't changed. That's misleading (looks like it runs often when it almost never should) and brittle. Ref + `visibilitychange` is one-shot per actual event.
+
+### Why whole-state-document sync, not per-row merge?
+
+Per-row/per-field merge needs stable row identity, tombstones for deletes,
+and a merge policy for every field type — real complexity for a small
+single-user dataset. A whole-document compare-and-swap is one write, one
+comparison, and a failure mode (conflict) simple enough to hand to the user
+instead of guessing. The cost is coarser conflicts (any concurrent edit on
+two devices conflicts, not just edits to the same field) — acceptable because
+concurrent edits across devices are rare for a personal expense tracker, and
+silently auto-merging a whole document risks losing entries a user would
+notice missing.
 
 ### Why a class-based ErrorBoundary?
 
