@@ -2,7 +2,7 @@
 
 A mobile-first expense tracker built around one number — **how much is safe to spend today.**
 
-No accounts. No sync. No backend. Just you and your money, stored locally on your device.
+Local-first. No account required, no telemetry, ever. An optional account adds cloud backup and multi-device sync — everything else stays exactly as it was: your data, stored on your device.
 
 ---
 
@@ -20,6 +20,7 @@ AfterPayday takes your monthly salary, subtracts your fixed bills and debt insta
 - **Month rollover** — auto-archives the month when the date changes; unpaid items become overdue
 - **Undo** — 5-second undo window after any deletion
 - **Export / Import** — full JSON backup and restore
+- **Cloud sync** *(optional)* — sign in with an email code to back up and sync across devices; see [`supabase/README.md`](./supabase/README.md). Skip it entirely and the app is unchanged — no account UI, no network calls
 - **Onboarding** — guided first-run walkthrough
 
 ---
@@ -33,7 +34,8 @@ AfterPayday takes your monthly salary, subtracts your fixed bills and debt insta
 | PWA | vite-plugin-pwa + Workbox |
 | Icons | Lucide React |
 | Tests | Vitest |
-| Storage | `localStorage` (no backend) |
+| Storage | `localStorage`, always |
+| Cloud sync *(optional)* | Supabase (Postgres + Auth + Row Level Security) |
 
 ---
 
@@ -84,7 +86,7 @@ AfterPayday is a fully offline-capable Progressive Web App. Install it to your h
 3. Click it and confirm **"Install"**
 4. The app opens in its own window, separate from the browser
 
-> **Tip:** Once installed, the app works fully offline. Your data is stored on your device and never sent anywhere.
+> **Tip:** Once installed, the app works fully offline. Your data is stored on your device and never sent anywhere — unless you sign in for optional cloud backup, in which case it's sent only to your own private, row-level-secured cloud row.
 
 ---
 
@@ -106,11 +108,13 @@ Then merge to `main`; the deploy workflow builds and publishes.
 ```
 ├── components/          # UI components (Dashboard, Commitments, etc.)
 ├── state/
-│   └── storage.js       # localStorage persistence layer
+│   ├── storage.js       # localStorage persistence layer
+│   └── cloud.js         # Cloud sync transport (optional, gated on Supabase env vars)
 ├── utils/
 │   ├── date.js          # Date helpers
 │   ├── money.js         # Currency formatting
 │   └── locale.js        # Locale config
+├── supabase/            # Cloud sync schema + one-time setup (optional)
 ├── expense-tracker.jsx  # Root app component & state
 ├── main.jsx             # React entry point
 ├── vite.config.js       # Build & PWA config

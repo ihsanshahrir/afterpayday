@@ -10,6 +10,18 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Force @supabase/supabase-js (dynamic-imported only on first sign-in,
+        // see utils/supabase.js) into a predictably-named chunk so Workbox's
+        // globIgnores below can exclude it from the precache by name.
+        manualChunks(id) {
+          if (id.includes('node_modules/@supabase')) return 'supabase'
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
@@ -49,7 +61,11 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
         // Keep the ~13 MB Tesseract OCR engine out of the precache so the base
         // app install stays small; it is runtime-cached on first scan instead.
-        globIgnores: ['**/tesseract/**'],
+        // Same reasoning for the Supabase client chunk (see the manualChunks
+        // above) — precaching it would silently defeat the point of the
+        // dynamic import, downloading it for every guest on install instead
+        // of only on first sign-in.
+        globIgnores: ['**/tesseract/**', '**/supabase-*.js'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         runtimeCaching: [

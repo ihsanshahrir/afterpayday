@@ -22,7 +22,7 @@ import { downscaleToCanvas } from "./utils/image.js";
 import { recognizeReceipt } from "./utils/ocr.js";
 import { parseReceiptText } from "./utils/receiptParse.js";
 import { SCAN_PROXY_URL, smartScanReceipt } from "./utils/aiScan.js";
-import { loadState, saveState } from "./state/storage.js";
+import { loadState, saveState, STORAGE_KEY } from "./state/storage.js";
 import {
   fixedGrandTotal,
   fixedUnpaidTotal,
@@ -38,8 +38,11 @@ import Dashboard from "./components/Dashboard.jsx";
 import Commitments from "./components/Commitments.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
 import HistorySheet from "./components/HistorySheet.jsx";
+import AccountSheet from "./components/AccountSheet.jsx";
+import ConflictSheet from "./components/ConflictSheet.jsx";
 import useFocusTrap from "./hooks/useFocusTrap.js";
 import useAppUpdate from "./hooks/useAppUpdate.js";
+import useCloudSync from "./hooks/useCloudSync.js";
 
 // Whether the AI proxy is configured for this build. When false, Smart Scan is
 // hidden entirely and scanning stays 100% on-device (Tesseract).
@@ -536,6 +539,7 @@ export default function App() {
   const [amountsHidden, setAmountsHidden] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(ONBOARDING_KEY));
   const [storageError, setStorageError] = useState(false);
   // null when closed; { editing } when open — editing is the row being edited
@@ -553,6 +557,19 @@ export default function App() {
     const ok = saveState(state);
     setStorageError(!ok);
   }, [state]);
+
+  // Downstream of the local save above, never in front of it — cloud sync
+  // never blocks or replaces the local-first write path.
+  const cloud = useCloudSync({ state, onRemoteState: setState });
+
+  const handleWipeLocal = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem("afterpayday:sync");
+      localStorage.removeItem("afterpayday:device");
+    } catch { /* best-effort */ }
+    window.location.reload();
+  }, []);
 
   const handleExport = useCallback(() => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
@@ -618,11 +635,20 @@ export default function App() {
       // unpaid amounts roll forward as overdue rather than retroactively
       // reducing a closed month's balance. Guarded against a runaway loop from
       // corrupted currentMonth data.
+      //
+      // Skip months already present in history: this effect re-registers its
+      // visibilitychange/timer listeners on every mount, and two of them can
+      // fire back-to-back before stateRef catches up (and, with cloud sync,
+      // a pulled remote doc can already carry the snapshot another device
+      // took) — without this guard either race duplicates a month's entry.
+      const existingMonths = new Set((s.history || []).map((h) => h.month));
       const snapshots = [];
       let closing = s.currentMonth;
       let guard = 0;
       while (closing < nowMonth && guard++ < 240) {
-        snapshots.push({ id: uid(), ...buildMonthSnapshot(s, closing) });
+        if (!existingMonths.has(closing)) {
+          snapshots.push({ id: uid(), ...buildMonthSnapshot(s, closing) });
+        }
         closing = nextMonthKey(closing);
       }
 
@@ -1074,6 +1100,8 @@ export default function App() {
             onExport={handleExport}
             onExportCSV={handleExportCSV}
             onImport={handleImport}
+            onOpenAccount={cloud.available ? () => setShowAccount(true) : undefined}
+            cloudEmail={cloud.email}
           />
         )}
 
@@ -1082,6 +1110,23 @@ export default function App() {
             history={state.history}
             currency={currency}
             onClose={() => setShowHistory(false)}
+          />
+        )}
+
+        {showAccount && (
+          <AccountSheet
+            cloud={cloud}
+            onClose={() => setShowAccount(false)}
+            onWipeLocal={handleWipeLocal}
+          />
+        )}
+
+        {cloud.conflict && (
+          <ConflictSheet
+            conflict={cloud.conflict}
+            localState={state}
+            lastSyncedAt={cloud.lastSyncedAt}
+            onResolve={cloud.resolveConflict}
           />
         )}
 
