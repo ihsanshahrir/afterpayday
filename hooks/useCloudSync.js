@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SYNC_AVAILABLE } from "../utils/supabase.js";
 import * as cloud from "../state/cloud.js";
 import { importState, CURRENT_VERSION } from "../state/storage.js";
+import { stateEntryCount } from "../state/derive.js";
 import { uid } from "../utils/id.js";
 
 const SYNC_META_KEY = "afterpayday:sync";
@@ -129,7 +130,14 @@ export default function useCloudSync({ state, onRemoteState }) {
         setStatus("synced");
         return;
       }
-      if (!dirtyRef.current) {
+      // A device this account has never synced before can't be trusted as
+      // "nothing to lose" just because dirtyRef is unset — dirtyRef only
+      // tracks edits made *while signed in*, so guest-mode edits made before
+      // this sign-in wouldn't have set it. Treat those as a real conflict
+      // instead of silently discarding them in favor of the cloud.
+      const neverSyncedOnThisDevice = localMeta.userId !== userId;
+      const hasUnsyncedLocalData = neverSyncedOnThisDevice && stateEntryCount(stateRef.current) > 0;
+      if (!dirtyRef.current && !hasUnsyncedLocalData) {
         // This device has no unpushed edits, so there's nothing local to
         // lose — cloud is authoritative the moment the user is signed in.
         adoptCloud(userId, remote);

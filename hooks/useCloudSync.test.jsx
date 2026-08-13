@@ -90,6 +90,31 @@ describe("useCloudSync — reconcile", () => {
     );
   });
 
+  it("surfaces a conflict instead of silently adopting cloud when this device has unsynced local data from a first-time sign-in", async () => {
+    const onRemoteState = vi.fn();
+    cloud.pullState.mockResolvedValue({ doc: baseState, rev: 5, updated_at: "now" });
+    const localState = { ...baseState, dailyExpenses: [{ id: "guest-entry" }] };
+
+    const { result } = renderHook((props) => useCloudSync(props), { state: localState, onRemoteState });
+    await flush();
+
+    expect(onRemoteState).not.toHaveBeenCalled();
+    expect(result.current.status).toBe("conflict");
+    expect(result.current.conflict).toEqual({ remote: { doc: baseState, rev: 5, updated_at: "now" } });
+  });
+
+  it("silently adopts cloud on a first-time sign-in when this device has no local data", async () => {
+    const onRemoteState = vi.fn();
+    cloud.pullState.mockResolvedValue({ doc: baseState, rev: 5, updated_at: "now" });
+
+    const { result } = renderHook((props) => useCloudSync(props), { state: baseState, onRemoteState });
+    await flush();
+
+    expect(onRemoteState).toHaveBeenCalled();
+    expect(result.current.status).toBe("synced");
+    expect(result.current.conflict).toBeNull();
+  });
+
   it("refuses a remote doc newer than CURRENT_VERSION without importing it", async () => {
     const onRemoteState = vi.fn();
     cloud.pullState.mockResolvedValue({ doc: { _version: 99 }, rev: 1, updated_at: "now" });
