@@ -91,6 +91,12 @@ describe("parseMerchant", () => {
     expect(parseMerchant("")).toBe("");
     expect(parseMerchant("@@@ ###\n123456")).toBe("");
   });
+
+  it("strips a leading formula-trigger character (CSV injection guard)", () => {
+    expect(parseMerchant("=SUM Grocer\nTEL: 03-123")).toBe("SUM Grocer");
+    expect(parseMerchant("+CMD Store\nTEL: 03-123")).toBe("CMD Store");
+    expect(parseMerchant("-Evil Mart\nTEL: 03-123")).toBe("Evil Mart");
+  });
 });
 
 describe("guessCategory", () => {

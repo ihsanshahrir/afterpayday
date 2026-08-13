@@ -54,4 +54,24 @@ describe("toDailyCSV", () => {
     ]);
     expect(csv).toContain("work|trip");
   });
+
+  it("neutralises leading formula-trigger characters (CSV injection)", () => {
+    const csv = toDailyCSV([
+      {
+        date: "2026-06-10",
+        amount: 1,
+        kind: "expense",
+        category: "other",
+        description: '=HYPERLINK("http://evil.example","x")',
+        merchant: "+1+1",
+        note: "-cmd",
+        tags: ["@SUM(1,1)"],
+      },
+    ]);
+    const row = csv.split("\r\n")[1];
+    expect(row).toContain("'=HYPERLINK");
+    expect(row).toContain("'+1+1");
+    expect(row).toContain("'-cmd");
+    expect(row).toContain("'@SUM(1,1)");
+  });
 });
