@@ -35,7 +35,20 @@ guesses.
    link opens the system browser instead of the installed PWA, which breaks
    the standalone-window flow.
 
-4. **Set the Site URL / redirect allowlist** (Authentication → URL
+4. **Put the code in the email templates** (Authentication → Email
+   Templates) — **required**, easy to miss. Supabase's default templates
+   only include `{{ .ConfirmationURL }}` (a link), not `{{ .Token }}` (the
+   code), even though the client calls `signInWithOtp`. Edit both **Confirm
+   signup** (used the first time an email signs in) and **Magic Link** (used
+   every time after) to surface the code, e.g.:
+   ```html
+   <h2>Your AfterPayday sign-in code</h2>
+   <h1>{{ .Token }}</h1>
+   ```
+   Skip this and users get a link that opens the system browser instead of a
+   code they can type into the app — the exact problem step 3 exists to avoid.
+
+5. **Set the Site URL / redirect allowlist** (Authentication → URL
    Configuration) to your deployed origin, e.g.
    `https://yourname.github.io/afterpayday/`.
 
