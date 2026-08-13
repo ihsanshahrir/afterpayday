@@ -22,13 +22,8 @@ const formatSyncedAt = (ts) => {
   return new Date(ts).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 };
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 export default function AccountSheet({ cloud, onClose, onWipeLocal }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [step, setStep] = useState("email"); // "email" | "code"
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState(null);
   const sheetRef = useRef(null);
@@ -45,37 +40,15 @@ export default function AccountSheet({ cloud, onClose, onWipeLocal }) {
 
   useFocusTrap(sheetRef, { active: isOpen, onEscape: close });
 
-  const handleSendCode = async () => {
-    const trimmed = email.trim();
-    if (!EMAIL_RE.test(trimmed)) {
-      setFormError("Enter a valid email address.");
-      return;
-    }
+  const handleSignIn = async () => {
     setBusy(true);
     setFormError(null);
     try {
-      await cloud.sendCode(trimmed);
-      setStep("code");
+      await cloud.signInWithGoogle();
+      // On success the browser navigates away to Google's consent screen —
+      // this component unmounts. Only a pre-redirect failure reaches here.
     } catch (e) {
-      setFormError(e?.message || "Could not send code. Try again.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleVerify = async () => {
-    const trimmed = code.trim();
-    if (!trimmed) {
-      setFormError("Enter the 6-digit code.");
-      return;
-    }
-    setBusy(true);
-    setFormError(null);
-    try {
-      await cloud.verifyCode(email.trim(), trimmed);
-    } catch (e) {
-      setFormError(e?.message || "Invalid or expired code.");
-    } finally {
+      setFormError(e?.message || "Could not start sign-in. Try again.");
       setBusy(false);
     }
   };
@@ -171,62 +144,21 @@ export default function AccountSheet({ cloud, onClose, onWipeLocal }) {
           </>
         ) : (
           <div className="field-block">
-            <div className="label">{step === "email" ? "Email" : "Verification code"}</div>
-            {step === "email" ? (
-              <input
-                className="glass-input"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                aria-label="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSendCode()}
-              />
-            ) : (
-              <>
-                <div style={{ font: "500 12px var(--font)", color: "var(--fg-3)", marginBottom: 8 }}>
-                  We sent a 6-digit code to {email.trim()}.
-                </div>
-                <input
-                  className="glass-input"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  placeholder="123456"
-                  aria-label="Verification code"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleVerify()}
-                />
-              </>
-            )}
+            <div className="label">Sign in</div>
             {formError && (
-              <div role="alert" style={{ marginTop: 8, font: "500 12px var(--font)", color: "var(--rose)" }}>
+              <div role="alert" style={{ marginBottom: 8, font: "500 12px var(--font)", color: "var(--rose)" }}>
                 {formError}
               </div>
             )}
             <button
               type="button"
               className="glass-btn-primary"
-              style={{ width: "100%", marginTop: 12 }}
-              onClick={step === "email" ? handleSendCode : handleVerify}
+              style={{ width: "100%" }}
+              onClick={handleSignIn}
               disabled={busy}
             >
-              {busy ? "Please wait…" : step === "email" ? "Send code" : "Verify & sign in"}
+              {busy ? "Redirecting…" : "Sign in with Google"}
             </button>
-            {step === "code" && (
-              <button
-                type="button"
-                className="glass-btn-secondary"
-                style={{ width: "100%", marginTop: 8 }}
-                onClick={() => { setStep("email"); setCode(""); setFormError(null); }}
-                disabled={busy}
-              >
-                Use a different email
-              </button>
-            )}
           </div>
         )}
 

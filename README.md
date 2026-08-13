@@ -20,7 +20,7 @@ AfterPayday takes your monthly salary, subtracts your fixed bills and debt insta
 - **Month rollover** — auto-archives the month when the date changes; unpaid items become overdue
 - **Undo** — 5-second undo window after any deletion
 - **Export / Import** — full JSON backup and restore
-- **Cloud sync** *(optional)* — sign in with an email code to back up and sync across devices; see [`supabase/README.md`](./supabase/README.md). Skip it entirely and the app is unchanged — no account UI, no network calls
+- **Cloud sync** *(optional)* — sign in with Google to back up and sync across devices; see [`supabase/README.md`](./supabase/README.md). Skip it entirely and the app is unchanged — no account UI, no network calls
 - **Onboarding** — guided first-run walkthrough
 
 ---
