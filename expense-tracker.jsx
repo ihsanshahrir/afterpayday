@@ -37,6 +37,7 @@ import {
 } from "./state/derive.js";
 import SplashScreen from "./components/SplashScreen.jsx";
 import OnboardingSlides, { ONBOARDING_KEY } from "./components/OnboardingSlides.jsx";
+import InstallPromptModal from "./components/InstallPromptModal.jsx";
 import Dashboard from "./components/Dashboard.jsx";
 import Commitments from "./components/Commitments.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
@@ -46,6 +47,7 @@ import ConflictSheet from "./components/ConflictSheet.jsx";
 import useFocusTrap from "./hooks/useFocusTrap.js";
 import useAppUpdate from "./hooks/useAppUpdate.js";
 import useCloudSync from "./hooks/useCloudSync.js";
+import useInstallPrompt from "./hooks/useInstallPrompt.js";
 
 // Whether the AI proxy is configured for this build. When false, Smart Scan is
 // hidden entirely and scanning stays 100% on-device (Tesseract).
@@ -557,6 +559,8 @@ export default function App() {
   const [showAccount, setShowAccount] = useState(false);
   const [showConflictSheet, setShowConflictSheet] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(ONBOARDING_KEY));
+  const [showInstall, setShowInstall] = useState(false);
+  const installPrompt = useInstallPrompt();
   const [storageError, setStorageError] = useState(false);
   // null when closed; { editing } when open — editing is the row being edited
   // (or null for a fresh add). One piece of state drives both add and edit.
@@ -923,12 +927,20 @@ export default function App() {
     }));
   };
 
-  const handleOnboardingDone = useCallback(() => {
-    setShowOnboarding(false);
+  const openSettingsIfEmpty = useCallback(() => {
     if (state.settings.salary === 0 && state.fixedExpenses.length === 0 && state.debtGroups.length === 0 && state.dailyExpenses.length === 0) {
       setShowSettings(true);
     }
   }, [state.settings.salary, state.fixedExpenses.length, state.debtGroups.length, state.dailyExpenses.length]);
+
+  const handleOnboardingDone = useCallback(() => {
+    setShowOnboarding(false);
+    if (installPrompt.eligible && installPrompt.promptEnabled) {
+      setShowInstall(true);
+      return;
+    }
+    openSettingsIfEmpty();
+  }, [installPrompt.eligible, installPrompt.promptEnabled, openSettingsIfEmpty]);
 
   return (
     // display:contents wrapper carries splash-active above BOTH the onboarding
@@ -936,6 +948,14 @@ export default function App() {
     // onboarding icon halo on the first-launch path too — without adding a box.
     <div className={`contents${splashDone ? "" : " splash-active"}`}>
       {showOnboarding && <OnboardingSlides onDone={handleOnboardingDone} />}
+      {showInstall && (
+        <InstallPromptModal
+          onClose={() => {
+            setShowInstall(false);
+            openSettingsIfEmpty();
+          }}
+        />
+      )}
       {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
 
       <div
@@ -1131,6 +1151,10 @@ export default function App() {
             onImport={handleImport}
             onOpenAccount={cloud.available ? () => setShowAccount(true) : undefined}
             cloudEmail={cloud.email}
+            installVisible={installPrompt.settingsVisible}
+            installPromptEnabled={installPrompt.promptEnabled}
+            onInstallPromptEnabledChange={installPrompt.setPromptEnabled}
+            onOpenInstall={() => setShowInstall(true)}
           />
         )}
 
