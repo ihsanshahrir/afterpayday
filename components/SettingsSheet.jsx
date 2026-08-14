@@ -3,19 +3,24 @@ import { X, ChevronDown } from "lucide-react";
 import WheelColumn from "./WheelColumn";
 import Collapse from "./Collapse";
 import VersionTag from "./VersionTag";
+import Switch from "./Switch";
 import { importState } from "../state/storage.js";
 import { SHEET_ANIM_MS } from "../utils/ui.js";
 import { CURRENCIES } from "../utils/currencies.js";
 import { DEFAULT_CATEGORIES, CATEGORY_COLORS, makeCustomCategory } from "../utils/categories.js";
 import useFocusTrap from "../hooks/useFocusTrap.js";
 
-export default function SettingsSheet({ settings, onSave, onExport, onExportCSV, onImport, onOpenAccount, cloudEmail }) {
+export default function SettingsSheet({
+  settings, onSave, onExport, onExportCSV, onImport, onOpenAccount, cloudEmail,
+  installVisible, installPromptEnabled, onInstallPromptEnabledChange, onOpenInstall,
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [salary, setSalary] = useState(String(settings.salary || ""));
   const [currency, setCurrency] = useState(settings.currency || "RM");
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [catsOpen, setCatsOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [installOpen, setInstallOpen] = useState(false);
   const [cats, setCats] = useState(() => (Array.isArray(settings.categories) ? settings.categories : []));
   const [newCatLabel, setNewCatLabel] = useState("");
   const [newCatColor, setNewCatColor] = useState(0);
@@ -278,6 +283,41 @@ export default function SettingsSheet({ settings, onSave, onExport, onExportCSV,
             )}
           </Collapse>
         </div>
+
+        {installVisible && (
+          <div className="field-block" style={{ marginTop: 24 }}>
+            <button
+              type="button"
+              className={`label-toggle${installOpen ? " open" : ""}`}
+              onClick={() => setInstallOpen((o) => !o)}
+              aria-expanded={installOpen}
+            >
+              Home Screen
+              <ChevronDown className="label-chev" size={14} strokeWidth={2} />
+            </button>
+            <Collapse open={installOpen}>
+              <div className="install-setting-row">
+                <div>
+                  <div className="label" style={{ marginBottom: 2 }}>Prompt after guide</div>
+                  <div className="hint">Show the install popup when onboarding finishes.</div>
+                </div>
+                <Switch
+                  checked={installPromptEnabled}
+                  onChange={onInstallPromptEnabledChange}
+                  label="Prompt to add to Home Screen after the guide"
+                />
+              </div>
+              <button
+                type="button"
+                className="glass-btn-secondary"
+                style={{ width: "100%", marginTop: 12 }}
+                onClick={onOpenInstall}
+              >
+                Add to Home Screen
+              </button>
+            </Collapse>
+          </div>
+        )}
 
         {onOpenAccount && (
           <div className="field-block" style={{ marginTop: 24 }}>
