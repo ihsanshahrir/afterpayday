@@ -12,6 +12,7 @@ vi.mock("../state/cloud.js", () => ({
   getSession: vi.fn(),
   onAuthChange: vi.fn(() => () => {}),
   pullState: vi.fn(),
+  pullRev: vi.fn(),
   pushState: vi.fn(),
   signInWithGoogle: vi.fn(),
   signOut: vi.fn(),
@@ -66,6 +67,11 @@ beforeEach(() => {
   vi.useFakeTimers();
   cloud.getSession.mockResolvedValue(session);
   cloud.onAuthChange.mockReturnValue(() => {});
+  // The rev probe mirrors whatever row pullState is mocked to return.
+  cloud.pullRev.mockImplementation(async (id) => {
+    const row = await cloud.pullState(id);
+    return row && { rev: row.rev };
+  });
 });
 
 afterEach(() => {
@@ -296,5 +302,51 @@ describe("useCloudSync — resilience", () => {
     await flush();
 
     expect(cloud.pullState).not.toHaveBeenCalled();
+  });
+
+  it("probes only the rev on focus and skips downloading the doc when nothing changed", async () => {
+    seedSyncedMeta();
+    await mount();
+    cloud.pullState.mockClear();
+    cloud.pullRev.mockReset().mockResolvedValue({ rev: 1 });
+
+    act(() => { window.dispatchEvent(new Event("focus")); });
+    await flush();
+
+    expect(cloud.pullRev).toHaveBeenCalledTimes(1);
+    expect(cloud.pullState).not.toHaveBeenCalled();
+  });
+
+  it("downloads the doc when the probed rev moved", async () => {
+    seedSyncedMeta();
+    const onRemoteState = vi.fn();
+    renderHook((props) => useCloudSync(props), { state: baseState, onRemoteState });
+    await flush();
+    cloud.pullState.mockResolvedValue({ doc: baseState, rev: 2, updated_at: "now" });
+
+    act(() => { window.dispatchEvent(new Event("focus")); });
+    await flush();
+    await flush();
+
+    expect(cloud.pullState).toHaveBeenCalled();
+    expect(onRemoteState).toHaveBeenCalled();
+  });
+
+  it("doesn't retry a push the database rejected permanently", async () => {
+    seedSyncedMeta();
+    cloud.pushState.mockRejectedValue(
+      Object.assign(new Error("Your data is too large to sync."), { permanent: true })
+    );
+
+    const { result, rerender } = await mount();
+    rerender({ state: { ...baseState, dailyExpenses: [{ id: "1" }] }, onRemoteState: vi.fn() });
+    act(() => { vi.advanceTimersByTime(3000); });
+    await flush();
+    act(() => { vi.advanceTimersByTime(10 * 60 * 1000); });
+    await flush();
+
+    expect(cloud.pushState).toHaveBeenCalledTimes(1);
+    expect(result.current.status).toBe("error");
+    expect(result.current.errorMessage).toMatch(/too large/i);
   });
 });

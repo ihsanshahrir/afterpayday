@@ -153,7 +153,7 @@ export default function useCloudSync({ state, onRemoteState }) {
       setStatus("error");
       // Don't leave edits stranded until the next change — retry with
       // backoff. A new edit reschedules on its own debounce anyway.
-      if (dirtyRef.current && !pushTimerRef.current) {
+      if (dirtyRef.current && !pushTimerRef.current && !e?.permanent) {
         const delay = Math.min(RETRY_BASE_MS * 2 ** retryAttemptRef.current, RETRY_MAX_MS);
         retryAttemptRef.current += 1;
         pushTimerRef.current = setTimeout(flushPush, delay);
@@ -170,6 +170,21 @@ export default function useCloudSync({ state, onRemoteState }) {
     setStatus("syncing");
     setErrorMessage(null);
     try {
+      const localMeta = readSyncMeta();
+      const knownRev = localMeta.userId === userId ? localMeta.rev : null;
+      // Common case on every focus/online: probe the rev alone and only
+      // download the whole doc if the cloud actually moved.
+      if (knownRev != null) {
+        const head = await cloud.pullRev(userId);
+        if (head?.rev === knownRev) {
+          revRef.current = knownRev;
+          // Any local edits are simply unpushed (e.g. focus returned inside
+          // the debounce window) — push them instead of flagging a conflict.
+          if (dirtyRef.current) flushPush();
+          else setStatus("synced");
+          return;
+        }
+      }
       const remote = await cloud.pullState(userId);
       if (!remote) {
         const result = await cloud.pushState({
@@ -187,16 +202,6 @@ export default function useCloudSync({ state, onRemoteState }) {
       if (Number(remote.doc?._version) > CURRENT_VERSION) {
         setErrorMessage("This account has data from a newer version of AfterPayday. Update the app to sync.");
         setStatus("error");
-        return;
-      }
-      const localMeta = readSyncMeta();
-      if (localMeta.userId === userId && localMeta.rev === remote.rev) {
-        revRef.current = remote.rev;
-        // The cloud hasn't moved since this device last synced, so any local
-        // edits are simply unpushed (e.g. focus returned inside the debounce
-        // window) — push them instead of flagging a conflict.
-        if (dirtyRef.current) flushPush();
-        else setStatus("synced");
         return;
       }
       // A device this account has never synced before can't be trusted as

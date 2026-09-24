@@ -5,6 +5,19 @@ import { getSupabase } from "../utils/supabase.js";
 
 const TABLE = "app_state";
 
+// SQLSTATE for a CHECK violation — the app_state_doc_shape constraint
+// (supabase/migrations/*_harden_app_state.sql) caps the doc at 2 MB.
+const CHECK_VIOLATION = "23514";
+
+// Marks errors that retrying can't fix, so the sync hook doesn't back off
+// and hammer the database with the same rejected write.
+const permanentError = (message) => Object.assign(new Error(message), { permanent: true });
+
+const toPushError = (error) =>
+  error.code === CHECK_VIOLATION
+    ? permanentError("Your data is too large to sync. Export a backup, then clear out old entries.")
+    : error;
+
 export async function getSession() {
   const sb = await getSupabase();
   const { data } = await sb.auth.getSession();
@@ -57,6 +70,20 @@ export async function pullState(userId) {
   return data;
 }
 
+// Cheap freshness probe: just the rev, not the (unbounded) doc. Lets the
+// focus/online reconcile skip downloading the whole document when nothing
+// changed. Returns { rev } or null if the user has no cloud row yet.
+export async function pullRev(userId) {
+  const sb = await getSupabase();
+  const { data, error } = await sb
+    .from(TABLE)
+    .select("rev")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 // Compare-and-swap push. expectedRev is the last rev this device knows about;
 // pass null for a first-ever push (row doesn't exist yet, uses insert instead
 // of update). Returns { ok: true, rev } on success or { conflict: true } if
@@ -72,7 +99,7 @@ export async function pushState({ userId, doc, expectedRev, deviceId }) {
       .maybeSingle();
     if (error) {
       if (error.code === "23505") return { conflict: true };
-      throw error;
+      throw toPushError(error);
     }
     return { ok: true, rev: data.rev };
   }
@@ -84,7 +111,7 @@ export async function pushState({ userId, doc, expectedRev, deviceId }) {
     .eq("rev", expectedRev)
     .select("rev")
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw toPushError(error);
   if (!data) return { conflict: true };
   return { ok: true, rev: data.rev };
 }

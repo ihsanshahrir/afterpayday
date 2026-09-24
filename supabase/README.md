@@ -25,10 +25,15 @@ guesses.
    is designed to ship in a client bundle; it is not a secret, Row Level
    Security is what actually protects the data (see step 2).
 
-2. **Run the schema** in the Supabase SQL editor: paste and run
-   [`supabase/schema.sql`](./schema.sql). This creates `app_state` with RLS
-   enabled and a policy restricting every row to `auth.uid() = user_id` — the
-   database enforces isolation, not any code this app ships.
+2. **Apply the migrations** in [`supabase/migrations/`](./migrations), oldest
+   first: either `supabase db push` with the Supabase CLI, or paste each file
+   into the SQL editor in filename order. This creates `app_state` with RLS
+   enabled, a policy restricting every row to the signed-in owner, a trigger
+   that makes `rev`/`updated_at` server-authoritative, and a 2 MB document
+   cap. The database enforces isolation, not any code this app ships.
+
+   Schema changes from now on go in a **new** timestamped file in that folder.
+   Never edit one that has already been applied.
 
 3. **Create a Google OAuth client** in the
    [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
@@ -76,10 +81,35 @@ variables → Actions → Variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KE
 
 ## Caveat
 
-Free Supabase projects pause after 7 consecutive days with zero requests (one
-click in the dashboard to resume). For an app opened weekly this rarely
-triggers; the sync UI treats a paused project as an ordinary network error
-(status `error`, no crash, guest use is unaffected).
+Free Supabase projects pause after 7 consecutive days with zero requests.
+[`supabase-keepalive.yml`](../.github/workflows/supabase-keepalive.yml) pings
+the database every 3 days to prevent that. GitHub disables scheduled
+workflows after 60 days without a commit, so re-enable it from the Actions
+tab if sync ever goes down after a quiet spell. While paused, the sync UI
+treats it as an ordinary network error (status `error`, retried with
+backoff). Guest use is unaffected.
+
+## Backups
+
+The free tier has no managed backups.
+[`supabase-backup.yml`](../.github/workflows/supabase-backup.yml) takes a
+weekly data-only dump of `app_state`, `auth.users` and `auth.identities`. It
+encrypts the dump with your passphrase and keeps it as a workflow artifact
+for 90 days. It is skipped until two repository **secrets** exist:
+`SUPABASE_DB_URL` (the Session pooler connection string) and
+`BACKUP_PASSPHRASE`.
+
+To restore:
+
+```bash
+gh run download <run-id> -n afterpayday-db-<stamp>
+gpg -d afterpayday-<stamp>.sql.gz.gpg | gunzip > restore.sql
+```
+
+Then, on a project whose schema is already set up from `migrations/`, run
+`restore.sql` with `psql "$SUPABASE_DB_URL" -f restore.sql`. Restoring into
+the **same** project overwrites nothing silently: clashing rows fail on their
+primary keys, so delete the rows you're replacing first.
 
 ## Security notes
 
