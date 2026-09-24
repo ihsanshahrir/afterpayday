@@ -1,0 +1,76 @@
+name: Supabase backup
+
+# Free-tier Supabase has no managed backups or point-in-time recovery, so this
+# takes a weekly logical dump of the sync data and keeps it as an encrypted
+# workflow artifact for 90 days.
+#
+# The repo is PUBLIC and public-repo artifacts are downloadable by any GitHub
+# user, so the dump is encrypted (gpg AES-256) before it is uploaded — the
+# plaintext never leaves the runner.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL     Session pooler connection string, from Supabase →
+#                       Connect → "Session pooler" (port 5432). The direct
+#                       db.<ref>.supabase.co host is IPv6-only and GitHub
+#                       runners can't reach it.
+#   BACKUP_PASSPHRASE   Long random passphrase. Store it in your password
+#                       manager too — without it the backups can't be opened.
+# Restore steps: supabase/README.md → "Backups".
+
+on:
+  schedule:
+    - cron: "30 3 * * 0" # Sundays 03:30 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Check secrets
+        id: check
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::warning::SUPABASE_DB_URL / BACKUP_PASSPHRASE not set — skipping backup."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dump and encrypt
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          umask 077
+          stamp=$(date -u +%Y%m%dT%H%M%SZ)
+          echo "STAMP=$stamp" >> "$GITHUB_ENV"
+          # pg_dump must be >= the server major version (Postgres 17).
+          # Data only: the schema lives in supabase/migrations. auth.users and
+          # auth.identities are included so app_state rows keep their owners
+          # if this ever has to be restored into a fresh project.
+          docker run --rm -e PGURL="$SUPABASE_DB_URL" postgres:17 \
+            sh -c 'pg_dump "$PGURL" --data-only --no-owner --no-privileges \
+              --table=public.app_state --table=auth.users --table=auth.identities' \
+            | gzip -9 \
+            | gpg --batch --yes --symmetric --cipher-algo AES256 \
+                --pinentry-mode loopback --passphrase-fd 3 \
+                --output "afterpayday-$stamp.sql.gz.gpg" 3<<<"$BACKUP_PASSPHRASE"
+          size=$(stat -c %s "afterpayday-$stamp.sql.gz.gpg")
+          echo "Encrypted dump: $size bytes"
+          # A healthy dump is never this small — fail rather than keep an
+          # empty backup that looks fine.
+          test "$size" -gt 200
+
+      - name: Upload encrypted dump
+        if: steps.check.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: afterpayday-db-${{ env.STAMP }}
+          path: afterpayday-*.sql.gz.gpg
+          retention-days: 90
+          if-no-files-found: error
