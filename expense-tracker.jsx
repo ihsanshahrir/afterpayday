@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
 import {
   Settings as SettingsIcon,
   LayoutDashboard,
@@ -17,7 +17,7 @@ import { uid } from "./utils/id.js";
 import { todayISO, currentMonthKey, nextMonthKey, isFixedPaidThisMonth, monthLabel, fmtDate } from "./utils/date.js";
 import { fmtNum } from "./utils/money.js";
 import { mergeCategories, PAYMENT_METHODS, makeCustomCategory } from "./utils/categories.js";
-import { SMART_SCAN_PREF_KEY } from "./utils/ui.js";
+import { SMART_SCAN_PREF_KEY, ONBOARDING_KEY } from "./utils/ui.js";
 import { toDailyCSV } from "./utils/csv.js";
 import DatePickerField from "./components/commitments/DatePickerField.jsx";
 import Collapse from "./components/Collapse.jsx";
@@ -36,18 +36,33 @@ import {
   computeSpentThisMonth,
 } from "./state/derive.js";
 import SplashScreen from "./components/SplashScreen.jsx";
-import OnboardingSlides, { ONBOARDING_KEY } from "./components/OnboardingSlides.jsx";
-import InstallPromptModal from "./components/InstallPromptModal.jsx";
 import Dashboard from "./components/Dashboard.jsx";
 import Commitments from "./components/Commitments.jsx";
-import SettingsSheet from "./components/SettingsSheet.jsx";
-import HistorySheet from "./components/HistorySheet.jsx";
-import AccountSheet from "./components/AccountSheet.jsx";
-import ConflictSheet from "./components/ConflictSheet.jsx";
 import useFocusTrap from "./hooks/useFocusTrap.js";
 import useAppUpdate from "./hooks/useAppUpdate.js";
 import useCloudSync from "./hooks/useCloudSync.js";
 import useInstallPrompt from "./hooks/useInstallPrompt.js";
+
+// Sheets and one-off overlays are split out of the main bundle: each only
+// mounts on demand, and all of them are prefetched once the app is idle (see
+// the effect in App) so the first open doesn't wait on the network. Every
+// chunk is also in the service worker precache, so this works offline.
+const loadOnboarding = () => import("./components/OnboardingSlides.jsx");
+const loadInstallPrompt = () => import("./components/InstallPromptModal.jsx");
+const loadSettingsSheet = () => import("./components/SettingsSheet.jsx");
+const loadHistorySheet = () => import("./components/HistorySheet.jsx");
+const loadAccountSheet = () => import("./components/AccountSheet.jsx");
+const loadConflictSheet = () => import("./components/ConflictSheet.jsx");
+const OnboardingSlides = lazy(loadOnboarding);
+const InstallPromptModal = lazy(loadInstallPrompt);
+const SettingsSheet = lazy(loadSettingsSheet);
+const HistorySheet = lazy(loadHistorySheet);
+const AccountSheet = lazy(loadAccountSheet);
+const ConflictSheet = lazy(loadConflictSheet);
+const LAZY_LOADERS = [
+  loadSettingsSheet, loadHistorySheet, loadAccountSheet, loadConflictSheet,
+  loadInstallPrompt, loadOnboarding,
+];
 
 // Whether the AI proxy is configured for this build. When false, Smart Scan is
 // hidden entirely and scanning stays 100% on-device (Tesseract).
@@ -573,6 +588,17 @@ export default function App() {
     navigator.storage?.persist?.();
   }, []);
 
+  // Warm the lazily loaded sheet chunks once the first paint is done.
+  useEffect(() => {
+    const prefetch = () => LAZY_LOADERS.forEach((load) => load().catch(() => {}));
+    if ("requestIdleCallback" in window) {
+      const id = requestIdleCallback(prefetch, { timeout: 4000 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = setTimeout(prefetch, 2000);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     const ok = saveState(state);
     setStorageError(!ok);
@@ -947,14 +973,22 @@ export default function App() {
     // overlay and the main app, so the backdrop-filter suppression reaches the
     // onboarding icon halo on the first-launch path too — without adding a box.
     <div className={`contents${splashDone ? "" : " splash-active"}`}>
-      {showOnboarding && <OnboardingSlides onDone={handleOnboardingDone} />}
+      {/* One Suspense boundary per lazy overlay (fallback null) so a chunk
+          still loading never suspends — and blanks — the rest of the app. */}
+      {showOnboarding && (
+        <Suspense fallback={null}>
+          <OnboardingSlides onDone={handleOnboardingDone} />
+        </Suspense>
+      )}
       {showInstall && (
-        <InstallPromptModal
-          onClose={() => {
-            setShowInstall(false);
-            openSettingsIfEmpty();
-          }}
-        />
+        <Suspense fallback={null}>
+          <InstallPromptModal
+            onClose={() => {
+              setShowInstall(false);
+              openSettingsIfEmpty();
+            }}
+          />
+        </Suspense>
       )}
       {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
 
@@ -989,7 +1023,7 @@ export default function App() {
           {/* Header */}
           <header className="glass appheader" style={{ margin: "12px 14px 0" }}>
             <div className="av">
-              <img src={`${import.meta.env.BASE_URL}app-icon.png`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} />
+              <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} />
             </div>
             <div className="who">
               <div className="h">AfterPayday</div>
@@ -1140,52 +1174,60 @@ export default function App() {
         />
 
         {showSettings && (
-          <SettingsSheet
-            settings={state.settings}
-            onSave={(patch) => {
-              updateSettings(patch);
-              setShowSettings(false);
-            }}
-            onExport={handleExport}
-            onExportCSV={handleExportCSV}
-            onImport={handleImport}
-            onOpenAccount={cloud.available ? () => setShowAccount(true) : undefined}
-            cloudEmail={cloud.email}
-            installVisible={installPrompt.settingsVisible}
-            installPromptEnabled={installPrompt.promptEnabled}
-            onInstallPromptEnabledChange={installPrompt.setPromptEnabled}
-            onOpenInstall={() => setShowInstall(true)}
-          />
+          <Suspense fallback={null}>
+            <SettingsSheet
+              settings={state.settings}
+              onSave={(patch) => {
+                updateSettings(patch);
+                setShowSettings(false);
+              }}
+              onExport={handleExport}
+              onExportCSV={handleExportCSV}
+              onImport={handleImport}
+              onOpenAccount={cloud.available ? () => setShowAccount(true) : undefined}
+              cloudEmail={cloud.email}
+              installVisible={installPrompt.settingsVisible}
+              installPromptEnabled={installPrompt.promptEnabled}
+              onInstallPromptEnabledChange={installPrompt.setPromptEnabled}
+              onOpenInstall={() => setShowInstall(true)}
+            />
+          </Suspense>
         )}
 
         {showHistory && (
-          <HistorySheet
-            history={state.history}
-            currency={currency}
-            onClose={() => setShowHistory(false)}
-          />
+          <Suspense fallback={null}>
+            <HistorySheet
+              history={state.history}
+              currency={currency}
+              onClose={() => setShowHistory(false)}
+            />
+          </Suspense>
         )}
 
         {showAccount && (
-          <AccountSheet
-            cloud={cloud}
-            onClose={() => setShowAccount(false)}
-            onWipeLocal={handleWipeLocal}
-            onReviewConflict={() => setShowConflictSheet(true)}
-          />
+          <Suspense fallback={null}>
+            <AccountSheet
+              cloud={cloud}
+              onClose={() => setShowAccount(false)}
+              onWipeLocal={handleWipeLocal}
+              onReviewConflict={() => setShowConflictSheet(true)}
+            />
+          </Suspense>
         )}
 
         {showConflictSheet && cloud.conflict && (
-          <ConflictSheet
-            conflict={cloud.conflict}
-            localState={state}
-            lastSyncedAt={cloud.lastSyncedAt}
-            onResolve={(choice) => {
-              cloud.resolveConflict(choice);
-              setShowConflictSheet(false);
-            }}
-            onClose={() => setShowConflictSheet(false)}
-          />
+          <Suspense fallback={null}>
+            <ConflictSheet
+              conflict={cloud.conflict}
+              localState={state}
+              lastSyncedAt={cloud.lastSyncedAt}
+              onResolve={(choice) => {
+                cloud.resolveConflict(choice);
+                setShowConflictSheet(false);
+              }}
+              onClose={() => setShowConflictSheet(false)}
+            />
+          </Suspense>
         )}
 
         {undo && (

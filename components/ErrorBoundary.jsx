@@ -1,6 +1,6 @@
 import { Component } from "react";
 import { STORAGE_KEY } from "../state/storage.js";
-import { ONBOARDING_KEY } from "./OnboardingSlides.jsx";
+import { ONBOARDING_KEY } from "../utils/ui.js";
 import { SMART_SCAN_PREF_KEY, INSTALL_PREF_KEY } from "../utils/ui.js";
 
 export default class ErrorBoundary extends Component {

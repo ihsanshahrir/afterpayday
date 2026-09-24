@@ -3,6 +3,11 @@
 // unmount until the exit animation finishes can't drift from the CSS timing.
 export const SHEET_ANIM_MS = 400;
 
+// localStorage key marking onboarding as finished. Lives here rather than in
+// OnboardingSlides.jsx so the root can read it without statically importing
+// (and so un-splitting) the lazily loaded onboarding chunk.
+export const ONBOARDING_KEY = "afterpayday-onboarding-done";
+
 // localStorage key for the Smart Scan opt-in preference. Shared with
 // ErrorBoundary's "clear data" path so a full reset doesn't leave it behind.
 export const SMART_SCAN_PREF_KEY = "afterpayday:smartScan";
