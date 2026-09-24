@@ -1,0 +1,33 @@
+name: Supabase keepalive
+
+# Free-tier Supabase projects pause after 7 days without activity, which takes
+# cloud sync down for every signed-in user. A tiny read every 3 days counts as
+# activity. It uses the same public anon key the app ships with; RLS means the
+# query returns no rows, but it still reaches Postgres.
+#
+# Note: GitHub disables scheduled workflows after 60 days with no repo
+# activity — re-enable it from the Actions tab if that happens.
+
+on:
+  schedule:
+    - cron: "0 3 */3 * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query app_state via REST
+        env:
+          SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 --retry 3 --retry-delay 10 \
+            -H "apikey: $SUPABASE_KEY" \
+            "$SUPABASE_URL/rest/v1/app_state?select=user_id&limit=1")
+          echo "HTTP $status"
+          # Fail loudly (GitHub emails on failed scheduled runs) if the project
+          # is already paused or otherwise unreachable.
+          test "$status" = "200"
