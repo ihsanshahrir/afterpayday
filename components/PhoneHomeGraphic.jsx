@@ -13,7 +13,7 @@ export default function PhoneHomeGraphic() {
           <div className="phone-slot target">
             <img
               className="phone-slot-icon"
-              src={`${import.meta.env.BASE_URL}app-icon.png`}
+              src={`${import.meta.env.BASE_URL}icon-192.png`}
               alt=""
             />
           </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Wallet, TrendingDown, ListChecks, PlusCircle, CheckCircle } from "lucide-react";
+import { ONBOARDING_KEY } from "../utils/ui.js";
 
-export const ONBOARDING_KEY = "afterpayday-onboarding-done";
 
 const SLIDES = [
   {

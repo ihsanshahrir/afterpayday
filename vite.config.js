@@ -27,7 +27,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       injectRegister: null,
-      includeAssets: ['favicon.ico', 'favicon-32x32.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'],
+      // workbox.globPatterns below already precaches every png/ico in dist;
+      // includeAssets / includeManifestIcons would list each icon a second time.
+      includeManifestIcons: false,
       manifest: {
         name: 'AfterPayday',
         short_name: 'AfterPayday',
