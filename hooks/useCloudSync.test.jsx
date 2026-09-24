@@ -196,3 +196,105 @@ describe("useCloudSync — push scheduling", () => {
     }
   });
 });
+
+describe("useCloudSync — resilience", () => {
+  const seedSyncedMeta = () => {
+    localStorage.setItem("afterpayday:sync", JSON.stringify({ userId: "u1", rev: 1 }));
+    cloud.pullState.mockResolvedValue({ doc: baseState, rev: 1, updated_at: "now" });
+  };
+
+  const mount = async () => {
+    const hook = renderHook((props) => useCloudSync(props), {
+      state: baseState, onRemoteState: vi.fn(),
+    });
+    await flush();
+    return hook;
+  };
+
+  it("retries a failed push with backoff instead of stranding the edit", async () => {
+    seedSyncedMeta();
+    cloud.pushState
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValueOnce({ ok: true, rev: 2 });
+
+    const { result, rerender } = await mount();
+    rerender({ state: { ...baseState, dailyExpenses: [{ id: "1" }] }, onRemoteState: vi.fn() });
+    act(() => { vi.advanceTimersByTime(3000); });
+    await flush();
+    expect(cloud.pushState).toHaveBeenCalledTimes(1);
+    expect(result.current.status).toBe("error");
+
+    act(() => { vi.advanceTimersByTime(4999); });
+    await flush();
+    expect(cloud.pushState).toHaveBeenCalledTimes(1); // still backing off
+
+    act(() => { vi.advanceTimersByTime(1); });
+    await flush();
+    expect(cloud.pushState).toHaveBeenCalledTimes(2);
+    expect(result.current.status).toBe("synced");
+  });
+
+  it("pushes an edit made while a previous push was still in flight", async () => {
+    seedSyncedMeta();
+    let resolveFirst;
+    cloud.pushState
+      .mockImplementationOnce(() => new Promise((r) => { resolveFirst = r; }))
+      .mockResolvedValueOnce({ ok: true, rev: 3 });
+
+    const { result, rerender } = await mount();
+    rerender({ state: { ...baseState, dailyExpenses: [{ id: "1" }] }, onRemoteState: vi.fn() });
+    act(() => { vi.advanceTimersByTime(3000); });
+    await flush();
+    expect(cloud.pushState).toHaveBeenCalledTimes(1);
+
+    // Edit lands mid-flight; its own debounce fires while the push is pending.
+    const latest = { ...baseState, dailyExpenses: [{ id: "1" }, { id: "2" }] };
+    rerender({ state: latest, onRemoteState: vi.fn() });
+    act(() => { vi.advanceTimersByTime(3000); });
+    await flush();
+    expect(cloud.pushState).toHaveBeenCalledTimes(1);
+
+    await act(async () => { resolveFirst({ ok: true, rev: 2 }); });
+    await flush();
+    act(() => { vi.advanceTimersByTime(3000); });
+    await flush();
+
+    expect(cloud.pushState).toHaveBeenCalledTimes(2);
+    expect(cloud.pushState).toHaveBeenLastCalledWith(
+      expect.objectContaining({ doc: latest, expectedRev: 2 })
+    );
+    expect(result.current.status).toBe("synced");
+  });
+
+  it("pushes pending edits on focus when the cloud hasn't changed, rather than flagging a conflict", async () => {
+    seedSyncedMeta();
+    cloud.pushState.mockResolvedValue({ ok: true, rev: 2 });
+
+    const { result, rerender } = await mount();
+    rerender({ state: { ...baseState, dailyExpenses: [{ id: "1" }] }, onRemoteState: vi.fn() });
+    act(() => { window.dispatchEvent(new Event("focus")); }); // inside the debounce window
+    await flush();
+    await flush();
+
+    expect(result.current.status).not.toBe("conflict");
+    expect(result.current.conflict).toBeNull();
+    expect(cloud.pushState).toHaveBeenCalledTimes(1);
+    expect(cloud.pushState).toHaveBeenCalledWith(expect.objectContaining({ expectedRev: 1 }));
+  });
+
+  it("doesn't pull on focus while a push is in flight", async () => {
+    seedSyncedMeta();
+    cloud.pushState.mockImplementation(() => new Promise(() => {}));
+
+    const { rerender } = await mount();
+    rerender({ state: { ...baseState, dailyExpenses: [{ id: "1" }] }, onRemoteState: vi.fn() });
+    act(() => { vi.advanceTimersByTime(3000); });
+    await flush();
+    cloud.pullState.mockClear();
+
+    act(() => { window.dispatchEvent(new Event("focus")); });
+    await flush();
+
+    expect(cloud.pullState).not.toHaveBeenCalled();
+  });
+});

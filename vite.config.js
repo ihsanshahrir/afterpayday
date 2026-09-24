@@ -81,6 +81,20 @@ export default defineConfig({
             },
           },
           {
+            // Supabase client chunk: kept out of the precache (see globIgnores)
+            // but cached after the first sign-in, so a signed-in user who
+            // opens the app offline can still restore their session and
+            // resume syncing once back online. Hashed filename, so CacheFirst
+            // is safe.
+            urlPattern: ({ url }) => /\/assets\/supabase-[^/]+\.js$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'supabase-client',
+              expiration: { maxEntries: 4 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
             // OCR engine + language data: fetched lazily on the first scan, then
             // cached so receipt scanning works fully offline afterwards.
             urlPattern: ({ url }) => url.pathname.includes('/tesseract/'),

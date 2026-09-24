@@ -22,7 +22,12 @@ export function getSupabase() {
           storageKey: "afterpayday:auth",
         },
       })
-    );
+    ).catch((err) => {
+      // Don't memoize a failed load (e.g. an offline cold start before the
+      // chunk is cached) — a later call must be able to retry the import.
+      clientPromise = null;
+      throw err;
+    });
   }
   return clientPromise;
 }

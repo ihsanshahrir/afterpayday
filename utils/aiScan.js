@@ -71,7 +71,11 @@ export function clampScanResult(raw) {
 
 // Send a downscaled receipt canvas to the proxy and return validated fields.
 // Throws on network/proxy failure so the caller can fall back to Tesseract.
-export async function smartScanReceipt(canvas, { signal } = {}) {
+// Defaults to a timeout so a hung proxy can't leave the scan spinning forever
+// instead of falling back.
+const SCAN_TIMEOUT_MS = 30_000;
+
+export async function smartScanReceipt(canvas, { signal = AbortSignal.timeout(SCAN_TIMEOUT_MS) } = {}) {
   if (!SCAN_PROXY_URL) throw new Error("Smart Scan is not configured");
   // JPEG q0.7 keeps the upload small (~100-300 KB), bounding latency + token cost.
   const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
