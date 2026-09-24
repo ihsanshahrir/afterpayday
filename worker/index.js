@@ -19,6 +19,9 @@ const MODEL = "meta/llama-3.2-90b-vision-instruct";
 const MAX_BODY_BYTES = 1_500_000; // ~1.5 MB; a downscaled JPEG is well under this
 const RATE_LIMIT = 20; // requests per window per IP
 const RATE_WINDOW_S = 60;
+// Upper bound on the NVIDIA call so a hung upstream can't hold the request
+// open; the client times out at 30s and falls back to on-device OCR.
+const UPSTREAM_TIMEOUT_MS = 25_000;
 
 // MANDATORY: Rate limiting prevents abuse (credit burn). env.RATE_KV must be
 // bound in wrangler.toml. Without it, the Worker will reject all requests.
@@ -181,8 +184,12 @@ export default {
           temperature: 0.1,
           response_format: { type: "json_object" },
         }),
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       });
-    } catch {
+    } catch (err) {
+      if (err?.name === "TimeoutError") {
+        return json({ error: "upstream_timeout" }, 504, cors);
+      }
       return json({ error: "upstream_unreachable" }, 502, cors);
     }
 

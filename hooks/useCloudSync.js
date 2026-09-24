@@ -8,6 +8,10 @@ import { uid } from "../utils/id.js";
 const SYNC_META_KEY = "afterpayday:sync";
 const DEVICE_ID_KEY = "afterpayday:device";
 const PUSH_DEBOUNCE_MS = 3000;
+// Backoff for retrying a failed push (network blip, Supabase waking from a
+// pause, 5xx): 5s, 10s, 20s … capped at 5 minutes.
+const RETRY_BASE_MS = 5000;
+const RETRY_MAX_MS = 5 * 60 * 1000;
 
 const readSyncMeta = () => {
   try {
@@ -68,6 +72,7 @@ export default function useCloudSync({ state, onRemoteState }) {
   const dirtyRef = useRef(false);
   const pushTimerRef = useRef(null);
   const pushingRef = useRef(false);
+  const retryAttemptRef = useRef(0);
   // Tracks the `state` identity the debounced-push effect last saw, so it
   // can tell "state actually changed" apart from "this effect re-ran because
   // session/conflict changed identity" (e.g. sign-in resolving) — the latter
@@ -101,7 +106,67 @@ export default function useCloudSync({ state, onRemoteState }) {
     }
   }, []);
 
+  const flushPush = useCallback(async () => {
+    // Whatever scheduled this call (debounce, retry, pagehide) has now fired.
+    // Clearing the ref lets the post-push check below tell whether another
+    // push is already queued.
+    if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
+    pushTimerRef.current = null;
+    const activeSession = sessionRef.current;
+    if (!activeSession || pushingRef.current || conflictRef.current) return;
+    if (!navigator.onLine) {
+      setStatus("offline");
+      return;
+    }
+    pushingRef.current = true;
+    setStatus("syncing");
+    const doc = stateRef.current;
+    try {
+      const result = await cloud.pushState({
+        userId: activeSession.user.id,
+        doc,
+        expectedRev: revRef.current,
+        deviceId: getDeviceId(),
+      });
+      if (result.conflict) {
+        const remote = await cloud.pullState(activeSession.user.id);
+        setConflictBoth({ remote });
+        setStatus("conflict");
+        return;
+      }
+      revRef.current = result.rev;
+      retryAttemptRef.current = 0;
+      // An edit made while this push was in flight isn't in `doc`. Its own
+      // debounced push may have fired mid-flight and bailed on pushingRef, so
+      // keep it dirty and queue another push rather than marking it synced.
+      dirtyRef.current = stateRef.current !== doc;
+      const meta = { userId: activeSession.user.id, rev: result.rev, lastPushedAt: Date.now() };
+      writeSyncMeta(meta);
+      setLastSyncedAt(meta.lastPushedAt);
+      if (dirtyRef.current) {
+        if (!pushTimerRef.current) pushTimerRef.current = setTimeout(flushPush, PUSH_DEBOUNCE_MS);
+      } else {
+        setStatus("synced");
+      }
+    } catch (e) {
+      setErrorMessage(e?.message || "Sync failed");
+      setStatus("error");
+      // Don't leave edits stranded until the next change — retry with
+      // backoff. A new edit reschedules on its own debounce anyway.
+      if (dirtyRef.current && !pushTimerRef.current) {
+        const delay = Math.min(RETRY_BASE_MS * 2 ** retryAttemptRef.current, RETRY_MAX_MS);
+        retryAttemptRef.current += 1;
+        pushTimerRef.current = setTimeout(flushPush, delay);
+      }
+    } finally {
+      pushingRef.current = false;
+    }
+  }, []);
+
   const reconcile = useCallback(async (userId) => {
+    // A pull racing an in-flight push can see either rev and misread this
+    // device's own write as a conflict; the push settles the state anyway.
+    if (pushingRef.current) return;
     setStatus("syncing");
     setErrorMessage(null);
     try {
@@ -125,9 +190,13 @@ export default function useCloudSync({ state, onRemoteState }) {
         return;
       }
       const localMeta = readSyncMeta();
-      if (localMeta.userId === userId && localMeta.rev === remote.rev && !dirtyRef.current) {
+      if (localMeta.userId === userId && localMeta.rev === remote.rev) {
         revRef.current = remote.rev;
-        setStatus("synced");
+        // The cloud hasn't moved since this device last synced, so any local
+        // edits are simply unpushed (e.g. focus returned inside the debounce
+        // window) — push them instead of flagging a conflict.
+        if (dirtyRef.current) flushPush();
+        else setStatus("synced");
         return;
       }
       // A device this account has never synced before can't be trusted as
@@ -152,7 +221,7 @@ export default function useCloudSync({ state, onRemoteState }) {
       setErrorMessage(e?.message || "Sync failed");
       setStatus("error");
     }
-  }, [adoptCloud]);
+  }, [adoptCloud, flushPush]);
 
   // Auth bootstrap + subscription.
   useEffect(() => {
@@ -175,6 +244,9 @@ export default function useCloudSync({ state, onRemoteState }) {
       } else {
         revRef.current = null;
         dirtyRef.current = false;
+        retryAttemptRef.current = 0;
+        if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
+        pushTimerRef.current = null;
         writeSyncMeta({});
         setConflictBoth(null);
         setErrorMessage(null);
@@ -186,42 +258,6 @@ export default function useCloudSync({ state, onRemoteState }) {
       unsub();
     };
   }, [reconcile]);
-
-  const flushPush = useCallback(async () => {
-    const activeSession = sessionRef.current;
-    if (!activeSession || pushingRef.current || conflictRef.current) return;
-    if (!navigator.onLine) {
-      setStatus("offline");
-      return;
-    }
-    pushingRef.current = true;
-    setStatus("syncing");
-    try {
-      const result = await cloud.pushState({
-        userId: activeSession.user.id,
-        doc: stateRef.current,
-        expectedRev: revRef.current,
-        deviceId: getDeviceId(),
-      });
-      if (result.conflict) {
-        const remote = await cloud.pullState(activeSession.user.id);
-        setConflictBoth({ remote });
-        setStatus("conflict");
-        return;
-      }
-      revRef.current = result.rev;
-      dirtyRef.current = false;
-      const meta = { userId: activeSession.user.id, rev: result.rev, lastPushedAt: Date.now() };
-      writeSyncMeta(meta);
-      setLastSyncedAt(meta.lastPushedAt);
-      setStatus("synced");
-    } catch (e) {
-      setErrorMessage(e?.message || "Sync failed");
-      setStatus("error");
-    } finally {
-      pushingRef.current = false;
-    }
-  }, []);
 
   // Debounced push whenever the app state changes while signed in. Keyed on
   // [state, session, conflict] so it re-evaluates when any of them change,
@@ -239,7 +275,11 @@ export default function useCloudSync({ state, onRemoteState }) {
     dirtyRef.current = true;
     if (pushTimerRef.current) clearTimeout(pushTimerRef.current);
     pushTimerRef.current = setTimeout(flushPush, PUSH_DEBOUNCE_MS);
-    return () => clearTimeout(pushTimerRef.current);
+    return () => {
+      clearTimeout(pushTimerRef.current);
+      // Null it too: flushPush reads a non-null ref as "a push is queued".
+      pushTimerRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, session, conflict]);
 
