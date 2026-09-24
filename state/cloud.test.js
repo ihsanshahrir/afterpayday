@@ -5,7 +5,7 @@ vi.mock("../utils/supabase.js", () => ({
 }));
 
 import { getSupabase } from "../utils/supabase.js";
-import { pullState, pushState } from "./cloud.js";
+import { pullRev, pullState, pushState } from "./cloud.js";
 
 // Chainable fake query builder — every method but the terminal one returns
 // itself, mirroring the subset of the supabase-js fluent API this module uses.
@@ -73,5 +73,35 @@ describe("pushState", () => {
     await expect(
       pushState({ userId: "user-1", doc: {}, expectedRev: 5, deviceId: "d1" })
     ).resolves.toEqual({ conflict: true });
+  });
+});
+
+describe("pullRev", () => {
+  it("returns just the rev", async () => {
+    getSupabase.mockResolvedValue(fakeClient({ data: { rev: 7 }, error: null }));
+    await expect(pullRev("user-1")).resolves.toEqual({ rev: 7 });
+  });
+
+  it("returns null when the user has no cloud row yet", async () => {
+    getSupabase.mockResolvedValue(fakeClient({ data: null, error: null }));
+    await expect(pullRev("user-1")).resolves.toBeNull();
+  });
+});
+
+describe("pushState — size cap", () => {
+  it.each([null, 5])("maps a CHECK violation to a permanent, readable error (expectedRev=%s)", async (expectedRev) => {
+    getSupabase.mockResolvedValue(fakeClient({ data: null, error: { code: "23514", message: "violates check" } }));
+    const err = await pushState({ userId: "user-1", doc: {}, expectedRev, deviceId: "d1" }).catch((e) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.permanent).toBe(true);
+    expect(err.message).toMatch(/too large to sync/i);
+  });
+
+  it("passes other errors through untouched", async () => {
+    const boom = { code: "08006", message: "connection failure" };
+    getSupabase.mockResolvedValue(fakeClient({ data: null, error: boom }));
+    await expect(
+      pushState({ userId: "user-1", doc: {}, expectedRev: 5, deviceId: "d1" })
+    ).rejects.toBe(boom);
   });
 });
