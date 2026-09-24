@@ -56,6 +56,9 @@ npm test
 
 # Build for production
 npm run build
+
+# Check the build against its size budget
+npm run size
 ```
 
 ---
@@ -101,6 +104,23 @@ git push --follow-tags
 ```
 
 Then merge to `main`; the deploy workflow builds and publishes.
+
+---
+
+## Operations
+
+Everything runs as GitHub Actions workflows; no extra services.
+
+| Workflow | When | What |
+|---|---|---|
+| `ci.yml` | Every PR | Lint, tests, build, bundle-size budget (`scripts/check-bundle-size.mjs`) |
+| `deploy.yml` | Push to `main` | Lint, tests, build, publish to GitHub Pages |
+| `uptime.yml` | Hourly | Probes the site, Supabase auth + database, and the Smart Scan proxy if configured. Opens an `uptime` issue on failure and closes it on recovery |
+| `supabase-keepalive.yml` | Every 3 days | Stops the free-tier Supabase project from pausing |
+| `supabase-backup.yml` | Weekly | Encrypted data dump, kept 90 days. Needs repo secrets, see `supabase/README.md` |
+
+GitHub disables scheduled workflows after 60 days without a commit. If alerts
+or backups go quiet, re-enable them from the Actions tab.
 
 ---
 

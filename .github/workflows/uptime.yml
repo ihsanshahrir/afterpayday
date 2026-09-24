@@ -1,0 +1,79 @@
+name: Uptime monitor
+
+# Hourly probe of the live site, Supabase (auth + Postgres) and, once
+# deployed, the Smart Scan proxy — see scripts/uptime-check.mjs.
+#
+# Alerting is a GitHub issue labelled `uptime`: opened (which notifies repo
+# watchers) when a check goes down, commented on while it stays down, and
+# closed automatically on recovery. One open issue at a time, so an outage
+# doesn't produce 24 notifications a day.
+#
+# Like the keepalive, GitHub disables this after 60 days with no commits to
+# the repo — re-enable it from the Actions tab.
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/uptime-check.mjs
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run checks
+        id: checks
+        continue-on-error: true
+        env:
+          SITE_URL_OVERRIDE: ${{ vars.SITE_URL }}
+          SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          SCAN_PROXY_URL: ${{ vars.VITE_SCAN_PROXY_URL }}
+        # Default: the GitHub Pages address for this repo; vars.SITE_URL overrides.
+        run: |
+          owner=$(printf '%s' "${GITHUB_REPOSITORY%%/*}" | tr '[:upper:]' '[:lower:]')
+          export SITE_URL="${SITE_URL_OVERRIDE:-https://$owner.github.io/${GITHUB_REPOSITORY#*/}/}"
+          node scripts/uptime-check.mjs | tee checks.txt
+
+      - name: Open or update the outage issue
+        if: steps.checks.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create uptime --color B60205 --description "Automated uptime alerts" --force >/dev/null
+          body=$(printf 'Checks failing as of %s UTC ([run](%s)):\n\n```\n%s\n```\n' \
+            "$(date -u '+%Y-%m-%d %H:%M')" "$RUN_URL" "$(cat checks.txt)")
+          open=$(gh issue list --label uptime --state open --json number -q '.[0].number')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "$body"
+          else
+            gh issue create --label uptime --title "🔴 AfterPayday uptime check failing" --body "$body"
+          fi
+          exit 1
+
+      - name: Close the outage issue on recovery
+        if: steps.checks.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open=$(gh issue list --label uptime --state open --json number -q '.[0].number')
+          if [ -n "$open" ]; then
+            gh issue close "$open" --comment "🟢 All checks passing again as of $(date -u '+%Y-%m-%d %H:%M') UTC."
+          fi
