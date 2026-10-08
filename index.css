@@ -1,4 +1,8 @@
 @import "tailwindcss";
+/* Design reference material, not app source — scanning it makes Tailwind
+   emit utilities like `.collapse { visibility: collapse }` that clash with
+   the app's own class names. */
+@source not "./AfterPayday Design System";
 
 html {
   background: var(--bg-base, #06040e);

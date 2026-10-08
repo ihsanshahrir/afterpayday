@@ -67,7 +67,10 @@ export default defineConfig({
         // above) — precaching it would silently defeat the point of the
         // dynamic import, downloading it for every guest on install instead
         // of only on first sign-in.
-        globIgnores: ['**/tesseract/**', '**/supabase-*.js'],
+        // Geist woff2 files are runtime-cached too (below): precaching them
+        // would blow the install budget, and font-display: swap means the
+        // first paint never waits on them anyway.
+        globIgnores: ['**/tesseract/**', '**/supabase-*.js', '**/*.woff2'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         runtimeCaching: [
@@ -93,6 +96,18 @@ export default defineConfig({
             options: {
               cacheName: 'supabase-client',
               expiration: { maxEntries: 4 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Self-hosted Geist (see fonts.css): cached on first load so the
+            // app keeps its typeface offline after that. Hashed filenames,
+            // so CacheFirst is safe.
+            urlPattern: ({ url }) => /\/assets\/[^/]+\.woff2$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'fonts',
+              expiration: { maxEntries: 8 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },

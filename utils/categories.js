@@ -1,5 +1,8 @@
 // Presentational metadata for daily-expense categories.
 //
+// `glyph` names a duotone icon in components/Icons.jsx; `icon` is the plain
+// text fallback, and the only glyph a user-made category has.
+//
 // `category` on a daily expense is presentational only — `kind`
 // (expense | refund) is the source of truth for direction. These built-ins
 // ship with the app and are fixed; users can ADD their own custom categories,
@@ -12,16 +15,16 @@ import { uid } from "./id.js";
 export const DEFAULT_CATEGORY_ID = "other";
 
 export const DEFAULT_CATEGORIES = [
-  { id: "food",  label: "Food",  icon: "☕", color: "var(--amber)",  bg: "rgba(252,211,77,0.18)" },
-  { id: "fuel",  label: "Fuel",  icon: "⛽", color: "var(--violet)", bg: "rgba(167,139,250,0.18)" },
-  { id: "shop",  label: "Shop",  icon: "🛍", color: "var(--pink)",   bg: "rgba(249,168,212,0.18)" },
-  { id: "other", label: "Other", icon: "•",  color: "var(--fg-2)",   bg: "rgba(255,255,255,0.10)" },
+  { id: "food",  label: "Food",  icon: "☕", glyph: "coffee", color: "var(--amber)",  bg: "rgba(252,211,77,0.18)" },
+  { id: "fuel",  label: "Fuel",  icon: "⛽", glyph: "fuel", color: "var(--violet)", bg: "rgba(167,139,250,0.18)" },
+  { id: "shop",  label: "Shop",  icon: "🛍", glyph: "bag", color: "var(--pink)",   bg: "rgba(249,168,212,0.18)" },
+  { id: "other", label: "Other", icon: "•",  glyph: "spark", color: "var(--fg-2)",   bg: "rgba(255,255,255,0.10)" },
 ];
 
 // Refund is a direction (`kind`), not a selectable category, but rows still
 // need a glyph — resolved for any row whose kind is "refund".
 export const REFUND_META = {
-  id: "refund", label: "Refund", icon: "↺", color: "var(--emerald)", bg: "rgba(52,211,153,0.18)",
+  id: "refund", label: "Refund", icon: "↺", glyph: "refund", color: "var(--emerald)", bg: "rgba(52,211,153,0.18)",
 };
 
 const DEFAULT_META = DEFAULT_CATEGORIES.find((c) => c.id === DEFAULT_CATEGORY_ID);
@@ -44,10 +47,10 @@ export const CATEGORY_COLORS = [
 // Payment methods are a small fixed set (not user-defined) so the optional
 // field stays low-friction and the sanitizer can validate it.
 export const PAYMENT_METHODS = [
-  { id: "cash",    label: "Cash",     icon: "💵" },
-  { id: "card",    label: "Card",     icon: "💳" },
-  { id: "ewallet", label: "E-wallet", icon: "📱" },
-  { id: "other",   label: "Other",    icon: "•" },
+  { id: "cash",    label: "Cash",     icon: "💵", glyph: "cash" },
+  { id: "card",    label: "Card",     icon: "💳", glyph: "card" },
+  { id: "ewallet", label: "E-wallet", icon: "📱", glyph: "phone" },
+  { id: "other",   label: "Other",    icon: "•",  glyph: "spark" },
 ];
 export const PAYMENT_METHOD_IDS = PAYMENT_METHODS.map((p) => p.id);
 

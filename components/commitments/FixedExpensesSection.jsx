@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Receipt, Plus, X, Check, Trash2, Pencil } from "lucide-react";
+import { Plus, X, Check, Trash2, Pencil } from "lucide-react";
+import { IcoReceipt } from "../Icons.jsx";
 import RingProgress from "../RingProgress.jsx";
 import Collapse from "../Collapse.jsx";
 import StatPager from "../StatPager.jsx";
@@ -125,7 +126,7 @@ export default function FixedExpensesSection({ currency, storageFull, items, tot
   return (
     <div className="sect">
       <div className="head">
-        <div className="chip amber"><Receipt size={15} strokeWidth={1.75} /></div>
+        <div className="chip amber"><IcoReceipt size={16} /></div>
         <h2>Fixed Monthly Expenses</h2>
         {totalCount > 0 && (
           <span className="badge">{paidCount}/{totalCount}</span>
