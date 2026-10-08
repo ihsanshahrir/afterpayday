@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Plus, X, CreditCard } from "lucide-react";
+import { Plus, X } from "lucide-react";
+import { IcoCard } from "../Icons.jsx";
 import Collapse from "../Collapse.jsx";
 import DebtSummary from "./DebtSummary.jsx";
 import DebtGroupCard from "./DebtGroupCard.jsx";
@@ -11,7 +12,7 @@ export default function DebtSection({ currency, storageFull, groups, onAddGroup,
   return (
     <div className="sect">
       <div className="head">
-        <div className="chip pink"><CreditCard size={15} strokeWidth={1.75} /></div>
+        <div className="chip pink"><IcoCard size={16} /></div>
         <h2>Installment Debt</h2>
         <button
           onClick={() => setCreating((v) => !v)}
