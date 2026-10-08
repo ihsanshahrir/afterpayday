@@ -2,7 +2,6 @@
    Dark base + vivid blurred blobs + heavy backdrop-filter glass.
    Geist sans, large rounded cards, gradient progress.
    =================================================================== */
-@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap");
 
 :root {
   --bg-base: #06040e;
