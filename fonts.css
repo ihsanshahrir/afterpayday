@@ -1,7 +1,7 @@
 /* ===== Self-hosted Geist ==========================================
    Bundled from @fontsource-variable so the font ships with the app: the
-   CSP (default-src 'self') allows it, the service worker precaches it,
-   and it works offline. Only the latin + latin-ext subsets are declared
+   CSP (default-src 'self') allows it, the service worker caches it on
+   first load so it works offline. Only latin + latin-ext are declared
    (covers the UI copy and currency symbols); other scripts fall back to
    the system stack via unicode-range.
    =================================================================== */
