@@ -15,7 +15,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "size": "node scripts/check-bundle-size.mjs"
   },
   "keywords": [],
   "author": "",
