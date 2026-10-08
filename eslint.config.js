@@ -4,7 +4,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 
 export default [
-  { ignores: ["dist", "dev-dist", "node_modules", "public/tesseract"] },
+  { ignores: ["dist", "dev-dist", "node_modules", "public/tesseract", "AfterPayday Design System"] },
   {
     files: ["**/*.{js,jsx}"],
     languageOptions: {

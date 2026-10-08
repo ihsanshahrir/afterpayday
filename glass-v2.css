@@ -1,0 +1,189 @@
+/* ===== AfterPayday · Liquid Glass v2 — layered on glass.css =========
+   Specular rim, lit sheen, drifting mood, spring motion, duotone icons.
+   Ported from the design system's ui_kits/afterpayday-glass/glass-v2.css.
+   Motion uses transform/opacity only; entrance animations fill
+   `backwards` so they never pin a transform after they finish (which would
+   block :active press scales). Honours prefers-reduced-motion.
+   =================================================================== */
+:root {
+  --glass: rgba(255,255,255,0.075);
+  --glass-strong: rgba(255,255,255,0.13);
+  --glass-edge: rgba(255,255,255,0.12);
+  --ease-out: cubic-bezier(0.22,1,0.36,1);
+  --ease-spring: cubic-bezier(0.34,1.36,0.64,1);
+  --ease-ios: cubic-bezier(0.32,0.72,0,1);
+  --glass-shadow: inset 0 1px 0 rgba(255,255,255,0.10),
+                  inset 0 -1px 0 rgba(0,0,0,0.22),
+                  0 22px 50px -24px rgba(0,0,0,0.75),
+                  0 2px 8px -3px rgba(0,0,0,0.35);
+}
+
+/* ----- glass primitive: tint + lit sheen + specular rim ----------- */
+.glass, .iconbtn {
+  background: linear-gradient(160deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.045) 42%, rgba(255,255,255,0.075) 100%);
+  border: 1px solid rgba(255,255,255,0.06);
+  backdrop-filter: blur(28px) saturate(210%) brightness(1.06);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) brightness(1.06);
+}
+.glass::before {
+  background: radial-gradient(120% 70% at 18% -10%, rgba(255,255,255,0.16), transparent 55%),
+              linear-gradient(180deg, transparent 70%, rgba(255,255,255,0.04));
+}
+.glass::after, .iconbtn::after {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px;
+  pointer-events: none; z-index: 2;
+  background: linear-gradient(150deg, rgba(255,255,255,0.6), rgba(255,255,255,0.10) 28%, rgba(255,255,255,0.02) 62%, rgba(255,255,255,0.30));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.iconbtn {
+  position: relative;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+  transition: transform 320ms var(--ease-spring), background 200ms ease, color 200ms ease;
+}
+.iconbtn:hover, .iconbtn:active { background: var(--glass-strong); }
+.iconbtn:active { transform: scale(0.9); }
+/* Sheets scroll, so an absolutely-placed rim would scroll away with the
+   content — they get the deeper tint only. */
+.sheet {
+  background: linear-gradient(170deg, rgba(40,32,72,0.72), rgba(18,14,36,0.72));
+  backdrop-filter: blur(50px) saturate(200%);
+  -webkit-backdrop-filter: blur(50px) saturate(200%);
+}
+
+/* ----- mood: slow drift, compositor-only ------------------------- */
+.mood .blob { will-change: transform; }
+.blob-1 { animation: drift1 24s ease-in-out infinite alternate; }
+.blob-2 { animation: drift2 28s ease-in-out infinite alternate; }
+.blob-3 { animation: drift3 32s ease-in-out infinite alternate; }
+.blob-4 { animation: drift4 20s ease-in-out infinite alternate; }
+@keyframes drift1 { to { transform: translate3d(70px,90px,0) scale(1.12); } }
+@keyframes drift2 { to { transform: translate3d(-80px,-60px,0) scale(0.92); } }
+@keyframes drift3 { to { transform: translate3d(90px,-70px,0) scale(1.1); } }
+@keyframes drift4 { to { transform: translate3d(-60px,50px,0) scale(1.2); } }
+
+/* ----- entrance: staggered rise ---------------------------------- */
+/* .view-enter wraps the active tab; its child is the tab's own column. */
+@keyframes rise { from { opacity: 0; transform: translate3d(0,16px,0) scale(0.985); } }
+.view-enter > * > * { animation: rise 620ms var(--ease-out) backwards; }
+.view-enter > * > *:nth-child(2) { animation-delay: 70ms; }
+.view-enter > * > *:nth-child(3) { animation-delay: 140ms; }
+.view-enter > * > *:nth-child(n+4) { animation-delay: 210ms; }
+.list .it { animation: rise 460ms var(--ease-out) backwards; }
+
+/* ----- press feedback (interactive cards only) ------------------- */
+.debt-card { transition: transform 360ms var(--ease-spring); }
+.debt-card:active { transform: scale(0.97); }
+
+/* ----- hero ------------------------------------------------------ */
+.hero .lbl .live { animation: none; position: relative; }
+.hero .lbl .live::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  border: 1.5px solid var(--emerald);
+  animation: ripple 2s var(--ease-out) infinite;
+}
+@keyframes ripple { from { transform: scale(1); opacity: 0.9; } to { transform: scale(3.2); opacity: 0; } }
+@keyframes grow { from { transform: scaleX(0); } }
+.hero .progress .bar,
+.debt-card .dprogress > div {
+  transform-origin: left center;
+  animation: grow 1100ms var(--ease-out) 220ms backwards;
+}
+.hero .progress .bar { position: relative; overflow: hidden; }
+.hero .progress .bar::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+  transform: translateX(-100%);
+  animation: sheen 3.4s ease-in-out 1.4s infinite;
+}
+@keyframes sheen { 0% { transform: translateX(-100%); } 45%, 100% { transform: translateX(100%); } }
+
+/* ----- icon chips ------------------------------------------------ */
+.pod .pl .pico {
+  width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.pico.amber, .sect .head .chip.amber { background: rgba(252,211,77,0.16); color: var(--amber); }
+.pico.pink, .sect .head .chip.pink { background: rgba(249,168,212,0.16); color: var(--pink); }
+.sect .head .chip { border: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.18); }
+.list .it .ic { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.14); }
+.list .it .x { opacity: 0.7; transition: color 150ms ease, opacity 150ms ease, transform 300ms var(--ease-spring); }
+.list .it .x:hover { opacity: 1; }
+.list .it .x:active { transform: scale(0.85); }
+.chips button, .sheet .seg button, .cat-pill { display: inline-flex; align-items: center; gap: 6px; }
+.sheet .seg button { justify-content: center; }
+.chips button { transition: background 200ms ease, color 200ms ease, border-color 200ms ease, transform 300ms var(--ease-spring); }
+.chips button:active { transform: scale(0.94); }
+.chips button .ico, .sheet .seg button .ico { opacity: 0.85; flex-shrink: 0; }
+
+/* ----- checkboxes ------------------------------------------------ */
+@keyframes pop { 0% { transform: scale(0.5); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.fixed-card .check { transition: background 200ms ease, border-color 200ms ease, box-shadow 200ms ease, transform 300ms var(--ease-spring); }
+.fixed-card .check:active { transform: scale(0.85); }
+.fixed-card .check.on,
+.debt-card .inst-row .check.on { box-shadow: 0 0 14px rgba(52,211,153,0.5); }
+.fixed-card .check.on svg { animation: pop 420ms var(--ease-spring); }
+.fixed-card .name, .fixed-card .amt { transition: color 250ms ease; }
+
+/* ----- tab bar: sliding pill ------------------------------------- */
+.tabbar > button.active { background: none; }
+.tabbar > button { transition: color 250ms ease; }
+.tabbar .tab-ind {
+  position: absolute !important; z-index: 0 !important;
+  top: 8px; bottom: 8px; left: 8px;
+  /* grid is 1fr 1fr 64px with 6px gaps and 8px padding → each tab is (W − 92) / 2 */
+  width: calc((100% - 92px) / 2);
+  border-radius: 22px;
+  background: rgba(255,255,255,0.13);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), inset 0 0 0 1px rgba(255,255,255,0.06), 0 8px 18px -10px rgba(0,0,0,0.6);
+  transition: transform 560ms var(--ease-spring);
+}
+.tabbar .tab-ind.r { transform: translateX(calc(100% + 6px)); }
+.tabbar > button svg { transition: transform 420ms var(--ease-spring); }
+.tabbar > button.active svg { transform: translateY(-1px) scale(1.1); }
+.tabbar .fab {
+  position: relative;
+  box-shadow: 0 14px 30px -8px rgba(167,139,250,0.7), inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -2px 6px rgba(0,0,0,0.12);
+}
+.tabbar .fab svg { width: 24px; height: 24px; transition: transform 460ms var(--ease-spring); }
+.tabbar > button.fab.active svg { transform: none; }
+.tabbar .fab.open svg { transform: rotate(135deg); }
+
+/* ----- sheets: iOS curve, background recedes --------------------- */
+/* Duration stays on --dur-sheet: SHEET_ANIM_MS gates unmount on it. */
+.sheet { transition: transform var(--dur-sheet) var(--ease-ios); }
+.scrim { transition: opacity 400ms ease; }
+/* transform-origin is set from JS to the middle of the visible viewport. */
+.app-body { transition: transform 560ms var(--ease-ios); }
+.app-body.sheet-open { transform: scale(0.94) translateY(-8px); }
+.sheet.on > * { animation: rise 520ms var(--ease-out) backwards; }
+.sheet.on > *:nth-child(2) { animation-delay: 40ms; }
+.sheet.on > *:nth-child(3) { animation-delay: 80ms; }
+.sheet.on > *:nth-child(4) { animation-delay: 120ms; }
+.sheet.on > *:nth-child(5) { animation-delay: 160ms; }
+.sheet.on > *:nth-child(n+6) { animation-delay: 200ms; }
+.sheet-actions button { transition: transform 300ms var(--ease-spring), opacity 200ms ease; }
+.sheet-actions button:active:not(:disabled) { transform: scale(0.96); }
+
+/* ----- onboarding ------------------------------------------------ */
+@keyframes obIcon { from { opacity: 0; transform: scale(0.7) rotate(-8deg); } }
+@keyframes float { 50% { transform: translateY(-5px); } }
+.ob-enter .onboarding-icon-halo { animation: obIcon 640ms var(--ease-spring) backwards; }
+.ob-enter .onboarding-icon-halo svg { animation: float 4s ease-in-out 700ms infinite; }
+.ob-enter .onboarding-text { animation: rise 560ms var(--ease-out) 90ms backwards; }
+.onboarding-dots .dot { transition: width 420ms var(--ease-spring), background 300ms ease; }
+.onboarding-nav .next { transition: transform 300ms var(--ease-spring); }
+.onboarding-nav .next:active { transform: scale(0.95); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+  .mood .blob { animation: none !important; }
+  .app-body.sheet-open { transform: none; }
+}
