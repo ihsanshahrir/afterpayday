@@ -1,11 +1,43 @@
-import { useState, useMemo } from "react";
-import { Trash2, Eye, EyeOff, Search, SlidersHorizontal } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { Eye, EyeOff, Search, SlidersHorizontal } from "lucide-react";
 import { todayISO, isInCurrentMonth, currentMonthKey, fmtRelativeDay, fmtTime } from "../utils/date.js";
 import { fmtNum, fmtCompact, MASK } from "../utils/money.js";
 import { LOCALE } from "../utils/locale.js";
 import { categoryMeta, mergeCategories } from "../utils/categories.js";
 import { groupDailyByDay, filterDailyExpenses, isDailyFilterActive } from "../state/derive.js";
 import SwapFade from "./SwapFade.jsx";
+import { GlyphIcon, IcoReceipt, IcoCard, IcoTrash } from "./Icons.jsx";
+
+const reduceMotion = () =>
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+// Eases the displayed number toward `target` (ease-out quart) so the hero
+// counts up on entry and glides between values. Jumps straight there when
+// the user prefers reduced motion.
+function useTween(target, dur = 900) {
+  const [v, setV] = useState(() => (reduceMotion() ? target : 0));
+  const from = useRef(v);
+  useEffect(() => {
+    if (reduceMotion()) {
+      from.current = target;
+      setV(target);
+      return;
+    }
+    const start = performance.now();
+    const a0 = from.current;
+    let raf;
+    const step = (t) => {
+      const p = Math.min(1, (t - start) / dur);
+      const cur = a0 + (target - a0) * (1 - Math.pow(1 - p, 4));
+      from.current = cur;
+      setV(cur);
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, dur]);
+  return v;
+}
 
 const SORTS = [
   { id: "date-desc", label: "Newest" },
@@ -66,7 +98,8 @@ export default function Dashboard({
   const pctUsed = total > 0 ? Math.max(0, Math.min(100, (spent / total) * 100)) : 0;
   const hasIncome = salary > 0;
 
-  const [intRaw, centPart] = Math.abs(safeToSpend).toFixed(2).split(".");
+  const shown = useTween(safeToSpend);
+  const [intRaw, centPart] = Math.abs(shown).toFixed(2).split(".");
   const intPart = Number(intRaw).toLocaleString(LOCALE);
 
   const setF = (patch) => setFilter((f) => ({ ...f, ...patch }));
@@ -94,7 +127,7 @@ export default function Dashboard({
           aria-label={`Edit ${label}`}
         >
           <div className="ic" style={{ background: meta.bg, color: meta.color }} aria-hidden="true">
-            {meta.icon}
+            <GlyphIcon meta={meta} size={17} />
           </div>
           <div className="text">
             <div className="d">{label}</div>
@@ -107,7 +140,7 @@ export default function Dashboard({
           aria-label={`Delete ${label}`}
           onClick={() => onRemoveDaily(e.id)}
         >
-          <Trash2 size={15} strokeWidth={1.75} />
+          <IcoTrash size={16} />
         </button>
       </li>
     );
@@ -176,7 +209,7 @@ export default function Dashboard({
       <div className="pods" style={{ margin: "0 14px" }}>
         <div className="glass pod">
           <div className="pl">
-            <span className="dot" style={{ background: "var(--amber)" }} />
+            <span className="pico amber"><IcoReceipt size={13} /></span>
             Fixed
           </div>
           <div className="pv">
@@ -193,7 +226,7 @@ export default function Dashboard({
         </div>
         <div className="glass pod">
           <div className="pl">
-            <span className="dot" style={{ background: "var(--pink)" }} />
+            <span className="pico pink"><IcoCard size={13} /></span>
             Debt
           </div>
           <div className="pv">

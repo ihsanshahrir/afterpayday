@@ -4,6 +4,7 @@ import App from './expense-tracker.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import './index.css'
 import './glass.css'
+import './glass-v2.css'
 // Side-effect only: attaches the beforeinstallprompt/appinstalled listeners
 // before React mounts, since Chrome can fire the event during first paint.
 import './utils/installPrompt.js'

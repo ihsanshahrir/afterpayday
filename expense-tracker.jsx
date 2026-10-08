@@ -1,10 +1,5 @@
-import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
 import {
-  Settings as SettingsIcon,
-  LayoutDashboard,
-  ListChecks,
-  History,
-  HelpCircle,
   Camera,
   Loader2,
   ChevronDown,
@@ -21,6 +16,7 @@ import { SMART_SCAN_PREF_KEY, ONBOARDING_KEY } from "./utils/ui.js";
 import { toDailyCSV } from "./utils/csv.js";
 import DatePickerField from "./components/commitments/DatePickerField.jsx";
 import Collapse from "./components/Collapse.jsx";
+import { GlyphIcon, IcoSettings, IcoHistory, IcoHelp, IcoDash, IcoList, IcoPlus } from "./components/Icons.jsx";
 import { downscaleToCanvas } from "./utils/image.js";
 import { recognizeReceipt } from "./utils/ocr.js";
 import { parseReceiptText } from "./utils/receiptParse.js";
@@ -444,7 +440,7 @@ function AddSheet({
               className={cat === c.id ? "on" : ""}
               onClick={() => setCat(c.id)}
             >
-              <span aria-hidden="true">{c.icon}</span> {c.label}
+              <GlyphIcon meta={c} size={14} />{c.label}
             </button>
           ))}
           <button
@@ -503,7 +499,7 @@ function AddSheet({
                   className={paymentMethod === p.id ? "on" : ""}
                   onClick={() => setPaymentMethod(p.id)}
                 >
-                  <span aria-hidden="true">{p.icon}</span> {p.label}
+                  <GlyphIcon meta={p} size={14} />{p.label}
                 </button>
               ))}
             </div>
@@ -580,6 +576,18 @@ export default function App() {
   // null when closed; { editing } when open — editing is the row being edited
   // (or null for a fresh add). One piece of state drives both add and edit.
   const [addSheet, setAddSheet] = useState(null);
+  // The page recedes behind any full-screen sheet (v2 depth cue).
+  const anySheetOpen = Boolean(addSheet) || showSettings || showHistory || showAccount || showConflictSheet;
+  const scrollRef = useRef(null);
+  const appBodyRef = useRef(null);
+  // Scale toward the middle of what's on screen, not the top of a long page.
+  useLayoutEffect(() => {
+    const scroller = scrollRef.current;
+    const body = appBodyRef.current;
+    if (!anySheetOpen || !scroller || !body) return;
+    const y = scroller.scrollTop + scroller.clientHeight / 2 - body.offsetTop;
+    body.style.transformOrigin = `50% ${Math.round(y)}px`;
+  }, [anySheetOpen]);
   const [undo, setUndo] = useState(null); // { snapshot, label } | null
   const undoTimerRef = useRef(null);
   const { updateReady, applyUpdate } = useAppUpdate();
@@ -993,6 +1001,7 @@ export default function App() {
       {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
 
       <div
+        ref={scrollRef}
         className="antialiased overflow-x-hidden"
         style={{
           background: "var(--bg-base)",
@@ -1012,7 +1021,8 @@ export default function App() {
         </div>
 
         <div
-          className="max-w-md mx-auto"
+          ref={appBodyRef}
+          className={`app-body max-w-md mx-auto${anySheetOpen ? " sheet-open" : ""}`}
           style={{
             position: "relative",
             zIndex: 1,
@@ -1030,10 +1040,10 @@ export default function App() {
               <div className="n">{monthLabel()}</div>
             </div>
             <button className="iconbtn" onClick={() => setShowOnboarding(true)} aria-label="Help">
-              <HelpCircle size={16} strokeWidth={1.75} />
+              <IcoHelp size={17} />
             </button>
             <button className="iconbtn" onClick={() => setShowHistory(true)} aria-label="History">
-              <History size={16} strokeWidth={1.75} />
+              <IcoHistory size={17} />
             </button>
             {cloud.available && (
               <button
@@ -1049,51 +1059,53 @@ export default function App() {
               </button>
             )}
             <button className="iconbtn" onClick={() => setShowSettings(true)} aria-label="Settings">
-              <SettingsIcon size={16} strokeWidth={1.75} />
+              <IcoSettings size={17} />
             </button>
           </header>
 
-          {/* Content */}
-          {tab === "dashboard" ? (
-            <Dashboard
-              currency={currency}
-              salary={state.settings.salary}
-              fixedTotal={fixedTotal}
-              fixedGrandTotal={fixedGrand}
-              installmentsTotalThisMonth={instTotals.dueThisMonth}
-              installmentsUnpaidThisMonth={instTotals.unpaidThisMonth}
-              installmentsOverdueUnpaid={instTotals.overdueUnpaid}
-              spentThisMonth={spentThisMonth}
-              safeToSpend={safeToSpend}
-              dailyExpenses={state.dailyExpenses}
-              categories={state.settings.categories}
-              onRemoveDaily={removeDailyExpense}
-              onEditDaily={(e) => setAddSheet({ editing: e })}
-              amountsHidden={amountsHidden}
-              setAmountsHidden={setAmountsHidden}
-            />
-          ) : (
-            <Commitments
-              currency={currency}
-              storageFull={storageError}
-              fixedExpenses={state.fixedExpenses}
-              fixedTotal={fixedTotal}
-              fixedGrandTotal={fixedGrand}
-              debtGroups={state.debtGroups}
-              onAddFixed={addFixedExpense}
-              onEditFixed={editFixedExpense}
-              onRemoveFixed={removeFixedExpense}
-              onToggleFixed={toggleFixedPaid}
-              onAddDebtGroup={addDebtGroup}
-              onRemoveDebtGroup={removeDebtGroup}
-              onEditDebtGroup={editDebtGroup}
-              onToggleInstallment={toggleInstallmentPaid}
-              onAddInstallment={addInstallmentToGroup}
-              onEditInstallment={editInstallment}
-              onRemoveInstallment={removeInstallment}
-              amountsHidden={amountsHidden}
-            />
-          )}
+          {/* Content — keyed so each tab switch replays the staggered entrance */}
+          <div key={tab} className="view-enter">
+            {tab === "dashboard" ? (
+              <Dashboard
+                currency={currency}
+                salary={state.settings.salary}
+                fixedTotal={fixedTotal}
+                fixedGrandTotal={fixedGrand}
+                installmentsTotalThisMonth={instTotals.dueThisMonth}
+                installmentsUnpaidThisMonth={instTotals.unpaidThisMonth}
+                installmentsOverdueUnpaid={instTotals.overdueUnpaid}
+                spentThisMonth={spentThisMonth}
+                safeToSpend={safeToSpend}
+                dailyExpenses={state.dailyExpenses}
+                categories={state.settings.categories}
+                onRemoveDaily={removeDailyExpense}
+                onEditDaily={(e) => setAddSheet({ editing: e })}
+                amountsHidden={amountsHidden}
+                setAmountsHidden={setAmountsHidden}
+              />
+            ) : (
+              <Commitments
+                currency={currency}
+                storageFull={storageError}
+                fixedExpenses={state.fixedExpenses}
+                fixedTotal={fixedTotal}
+                fixedGrandTotal={fixedGrand}
+                debtGroups={state.debtGroups}
+                onAddFixed={addFixedExpense}
+                onEditFixed={editFixedExpense}
+                onRemoveFixed={removeFixedExpense}
+                onToggleFixed={toggleFixedPaid}
+                onAddDebtGroup={addDebtGroup}
+                onRemoveDebtGroup={removeDebtGroup}
+                onEditDebtGroup={editDebtGroup}
+                onToggleInstallment={toggleInstallmentPaid}
+                onAddInstallment={addInstallmentToGroup}
+                onEditInstallment={editInstallment}
+                onRemoveInstallment={removeInstallment}
+                amountsHidden={amountsHidden}
+              />
+            )}
+          </div>
         </div>
 
         {/* Floating tab bar */}
@@ -1128,12 +1140,13 @@ export default function App() {
                 ?.focus();
             }}
           >
+            <span className={`tab-ind${tab === "commitments" ? " r" : ""}`} aria-hidden="true" />
             <button
               className={tab === "dashboard" ? "active" : ""}
               aria-current={tab === "dashboard" ? "page" : undefined}
               onClick={() => setTab("dashboard")}
             >
-              <LayoutDashboard size={18} strokeWidth={1.75} />
+              <IcoDash size={18} />
               <span>Today</span>
             </button>
             <button
@@ -1141,17 +1154,17 @@ export default function App() {
               aria-current={tab === "commitments" ? "page" : undefined}
               onClick={() => setTab("commitments")}
             >
-              <ListChecks size={18} strokeWidth={1.75} />
+              <IcoList size={18} />
               <span>Commit</span>
             </button>
             <button
-              className="fab"
+              className={`fab${addSheet ? " open" : ""}`}
               onClick={() => setAddSheet({ editing: null })}
               aria-label="Add expense"
               disabled={storageError}
               aria-disabled={storageError}
             >
-              ＋
+              <IcoPlus size={24} strokeWidth={2.2} />
             </button>
           </div>
         </nav>
