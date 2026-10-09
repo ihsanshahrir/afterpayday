@@ -1,35 +1,35 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Wallet, TrendingDown, ListChecks, PlusCircle, CheckCircle } from "lucide-react";
+import { IcoWallet, IcoTrend, IcoList, IcoPlusCircle, IcoCheckCircle } from "./Icons.jsx";
 import { ONBOARDING_KEY } from "../utils/ui.js";
 
 
 const SLIDES = [
   {
-    Icon: Wallet,
+    Icon: IcoWallet,
     title: "Welcome to AfterPayday",
     body: "Know exactly what you can spend after bills and commitments — every single day.",
     color: "var(--emerald)",
   },
   {
-    Icon: TrendingDown,
+    Icon: IcoTrend,
     title: "Your Safe to Spend",
     body: "We subtract fixed bills and daily spending from your salary. What's left is yours to spend freely.",
     color: "var(--violet)",
   },
   {
-    Icon: ListChecks,
+    Icon: IcoList,
     title: "Track commitments",
     body: "Add recurring bills and installment debts. Mark them paid each month.",
     color: "var(--amber)",
   },
   {
-    Icon: PlusCircle,
+    Icon: IcoPlusCircle,
     title: "Log daily expenses",
     body: "Tap + to record what you spend today. Your Safe to Spend updates instantly.",
     color: "var(--pink)",
   },
   {
-    Icon: CheckCircle,
+    Icon: IcoCheckCircle,
     title: "You're all set",
     body: "Start by setting your monthly salary in Settings. AfterPayday handles the rest.",
     color: "var(--emerald)",
@@ -102,12 +102,13 @@ export default function OnboardingSlides({ onDone }) {
         Skip
       </button>
 
-      <div className="onboarding-content">
+      {/* Keyed per slide so the icon and copy replay their entrance */}
+      <div className="onboarding-content ob-enter" key={current}>
         <div
           className="onboarding-icon-halo"
           style={{ "--ob-color": color }}
         >
-          <Icon size={46} strokeWidth={1.75} />
+          <Icon size={46} />
         </div>
 
         <div className="onboarding-text">

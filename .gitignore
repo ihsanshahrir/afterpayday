@@ -20,5 +20,5 @@ worker/.dev.vars
 public/tesseract/worker.min.js
 public/tesseract/tesseract-core*
 
-# Design system reference bundle — design source, not part of the app build
+# Design reference material (exported design system) — not app source
 AfterPayday Design System/

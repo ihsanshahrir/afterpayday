@@ -4,6 +4,7 @@ import WheelColumn from "./WheelColumn";
 import Collapse from "./Collapse";
 import VersionTag from "./VersionTag";
 import Switch from "./Switch";
+import { GlyphIcon } from "./Icons.jsx";
 import { importState } from "../state/storage.js";
 import { SHEET_ANIM_MS } from "../utils/ui.js";
 import { CURRENCIES } from "../utils/currencies.js";
@@ -175,7 +176,7 @@ export default function SettingsSheet({
             <div className="cat-manager">
               {DEFAULT_CATEGORIES.map((c) => (
                 <span key={c.id} className="cat-pill" style={{ background: c.bg, color: c.color }}>
-                  <span aria-hidden="true">{c.icon}</span> {c.label}
+                  <GlyphIcon meta={c} size={13} /> {c.label}
                 </span>
               ))}
               {cats.map((c) => (
