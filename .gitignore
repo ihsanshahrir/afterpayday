@@ -19,3 +19,6 @@ worker/.dev.vars
 # (regenerated per install). The language model is committed, so keep that one.
 public/tesseract/worker.min.js
 public/tesseract/tesseract-core*
+
+# Design system reference bundle — design source, not part of the app build
+AfterPayday Design System/
